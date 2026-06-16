@@ -6,16 +6,16 @@ import { VerifyCode } from "./pages/Auth/VerifyCode";
 import { ResetPassword } from "./pages/Auth/ResetPassword";
 
 export function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/recuperar-senha" element={<ForgotPassword />} />
-        <Route path="/verificar-codigo" element={<VerifyCode />} />
-        <Route path="/resetar-senha" element={<ResetPassword />} />
-      </Routes>
-    </BrowserRouter>
-  );
+	return (
+		<BrowserRouter>
+			<Routes>
+				<Route path="/" element={<Login />} />
+				<Route path="/recuperar-senha" element={<ForgotPassword />} />
+				<Route path="/verificar-codigo" element={<VerifyCode />} />
+				<Route path="/resetar-senha" element={<ResetPassword />} />
+			</Routes>
+		</BrowserRouter>
+	);
 }
 
 export default App;

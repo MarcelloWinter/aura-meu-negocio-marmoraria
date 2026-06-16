@@ -1,15 +1,15 @@
 interface FormErrorProps {
-  message?: string;
+	message?: string;
 }
 
 export function FormError({
-  message,
+	message,
 }: FormErrorProps) {
-  if (!message) return null;
+	if (!message) return null;
 
-  return (
-    <span className="text-sm text-red-500">
-      {message}
-    </span>
-  );
+	return (
+		<span className="text-sm text-red-500">
+			{message}
+		</span>
+	);
 }
