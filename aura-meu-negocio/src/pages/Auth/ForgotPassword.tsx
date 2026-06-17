@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
+import { AuthCard } from "../../components/AuthCard";
+import { AuthLayout } from "../../components/AuthLayout";
 import { api } from "../../services/api";
-import { Logo } from "../../components/Logo";
 
 export function ForgotPassword() {
 	const navigate = useNavigate();
@@ -85,87 +86,69 @@ export function ForgotPassword() {
 	}
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-[var(--background)] px-4">
-			<div className="w-full max-w-md">
-				<div className="mb-8">
-					<Logo />
-				</div>
+		<AuthLayout>
+			<AuthCard
+				title="Recuperar Senha"
+				description="Informe seu usuário para redefinir sua senha."
+			>
+				<form
+					onSubmit={handleSubmit}
+					className="space-y-4"
+				>
+					<Input
+						label="Usuário"
+						placeholder="Digite seu usuário"
+						value={usuario}
+						onChange={(e) => {
+							setUsuario(e.target.value);
 
-				{/* Card */}
-				<div className="bg-[var(--card)] rounded-3xl shadow-lg border border-[var(--border)] p-6">
-					<div className="text-center mb-8">
-						<h2 className="text-2xl font-bold text-[var(--text)]">
-							Recuperar Senha
-						</h2>
+							if (
+								errors.usuario ||
+								errors.geral
+							) {
+								setErrors({
+									usuario: "",
+									geral: "",
+								});
+							}
+						}}
+						error={errors.usuario}
+					/>
 
-						<p className="text-[var(--text-secondary)] mt-2">
-							Informe seu usuário para redefinir sua senha.
-						</p>
-					</div>
+					{errors.geral && (
+						<div
+							className="
+								rounded-xl
+								border
+								border-red-200
+								bg-red-50
+								p-3
+								text-sm
+								text-red-600
+							"
+						>
+							{errors.geral}
+						</div>
+					)}
 
-					<form
-						onSubmit={handleSubmit}
-						className="space-y-4"
+					<Button
+						type="submit"
+						disabled={loading}
 					>
-						<Input
-							label="Usuário"
-							placeholder="Digite seu usuário"
-							value={usuario}
-							onChange={(e) => {
-								setUsuario(e.target.value);
+						{loading
+							? "Enviando código..."
+							: "Alterar Senha"}
+					</Button>
 
-								if (
-									errors.usuario ||
-									errors.geral
-								) {
-									setErrors({
-										usuario: "",
-										geral: "",
-									});
-								}
-							}}
-							error={errors.usuario}
-						/>
-
-						{errors.geral && (
-							<div
-								className="
-                  rounded-xl
-                  border
-                  border-red-200
-                  bg-red-50
-                  p-3
-                  text-sm
-                  text-red-600
-                "
-							>
-								{errors.geral}
-							</div>
-						)}
-
-						<Button
-							type="submit"
-							disabled={loading}
-						>
-							{loading
-								? "Enviando código..."
-								: "Alterar Senha"}
-						</Button>
-
-						<Button
-							type="button"
-							onClick={() => navigate("/")}
-							variant="ghost"
-						>
-							Voltar
-						</Button>
-					</form>
-				</div>
-
-				<p className="text-center text-sm text-[var(--text-secondary)] mt-6">
-					© {new Date().getFullYear()} Aura Soluções Tecnológicas
-				</p>
-			</div>
-		</div>
+					<Button
+						type="button"
+						onClick={() => navigate("/")}
+						variant="ghost"
+					>
+						Voltar
+					</Button>
+				</form>
+			</AuthCard>
+		</AuthLayout>
 	);
 }

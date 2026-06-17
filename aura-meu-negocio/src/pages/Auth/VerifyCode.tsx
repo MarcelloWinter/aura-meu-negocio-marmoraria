@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
-import { Logo } from "../../components/Logo";
+import { AuthLayout } from "../../components/AuthLayout";
+import { AuthCard } from "../../components/AuthCard";
 import { api } from "../../services/api";
 
 export function VerifyCode() {
@@ -138,112 +139,98 @@ export function VerifyCode() {
 	}
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-[var(--background)] px-4">
-			<div className="w-full max-w-md">
-				<div className="mb-8">
-					<Logo />
-				</div>
+		<AuthLayout>
+			<AuthCard
+				title="Código de Verificação"
+				description="Digite o código de 6 dígitos enviado para seu WhatsApp."
+			>
+				<form
+					onSubmit={handleSubmit}
+					className="space-y-4"
+				>
+					<Input
+						label="Código"
+						placeholder="000000"
+						maxLength={6}
+						value={codigo}
+						onChange={(e) => {
+							setCodigo(
+								e.target.value.replace(
+									/\D/g,
+									""
+								)
+							);
 
-				<div className="bg-[var(--card)] rounded-3xl shadow-lg border border-[var(--border)] p-6">
-					<div className="text-center mb-8">
-						<h2 className="text-2xl font-bold text-[var(--text)]">
-							Código de Verificação
-						</h2>
+							if (
+								errors.codigo ||
+								errors.geral
+							) {
+								setErrors({
+									codigo: "",
+									geral: "",
+								});
+							}
+						}}
+						error={errors.codigo}
+					/>
 
-						<p className="text-[var(--text-secondary)] mt-2">
-							Digite o código de 6 dígitos enviado para seu WhatsApp.
-						</p>
-					</div>
+					{successMessage && (
+						<div
+							className="
+								rounded-xl
+								border
+								border-green-200
+								bg-green-50
+								p-4
+								text-sm
+								text-green-700
+							"
+						>
+							<div className="font-semibold">
+								✓ Código reenviado
+							</div>
 
-					<form
-						onSubmit={handleSubmit}
-						className="space-y-4"
+							<div className="mt-1">
+								{successMessage}
+							</div>
+						</div>
+					)}
+
+					{errors.geral && (
+						<div
+							className="
+								rounded-xl
+								border
+								border-red-200
+								bg-red-50
+								p-3
+								text-sm
+								text-red-600
+							"
+						>
+							{errors.geral}
+						</div>
+					)}
+
+					<Button
+						type="submit"
+						disabled={loading}
 					>
-						<Input
-							label="Código"
-							placeholder="000000"
-							maxLength={6}
-							value={codigo}
-							onChange={(e) => {
-								setCodigo(
-									e.target.value.replace(
-										/\D/g,
-										""
-									)
-								);
+						{loading
+							? "Validando..."
+							: "Confirmar Código"}
+					</Button>
 
-								if (
-									errors.codigo ||
-									errors.geral ||
-									successMessage
-								) {
-									setErrors({
-										codigo: "",
-										geral: "",
-									});
-
-									setSuccessMessage("");
-								}
-							}}
-							error={errors.codigo}
-						/>
-
-						{errors.geral && (
-							<div
-								className="
-                  rounded-xl
-                  border
-                  border-red-200
-                  bg-red-50
-                  p-3
-                  text-sm
-                  text-red-600
-                "
-							>
-								{errors.geral}
-							</div>
-						)}
-
-						{successMessage && (
-							<div
-								className="
-                  rounded-xl
-                  border
-                  border-green-200
-                  bg-green-50
-                  p-3
-                  text-sm
-                  text-green-700
-                "
-							>
-								✓ {successMessage}
-							</div>
-						)}
-
-						<Button
-							type="submit"
-							disabled={loading}
-						>
-							{loading
-								? "Validando..."
-								: "Confirmar Código"}
-						</Button>
-
-						<Button
-							type="button"
-							variant="ghost"
-							disabled={loading}
-							onClick={handleResendCode}
-						>
-							Reenviar Código
-						</Button>
-					</form>
-				</div>
-
-				<p className="text-center text-sm text-[var(--text-secondary)] mt-6">
-					© {new Date().getFullYear()} Aura Soluções Tecnológicas
-				</p>
-			</div>
-		</div>
+					<Button
+						type="button"
+						variant="ghost"
+						disabled={loading}
+						onClick={handleResendCode}
+					>
+						Reenviar Código
+					</Button>
+				</form>
+			</AuthCard>
+		</AuthLayout>
 	);
 }

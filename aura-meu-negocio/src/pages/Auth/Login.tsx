@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
-import { Logo } from "../../components/Logo";
+import { AuthCard } from "../../components/AuthCard";
+import { AuthLayout } from "../../components/AuthLayout";
 import { api } from "../../services/api";
 
 export function Login() {
@@ -76,7 +77,7 @@ export function Login() {
 				JSON.stringify(usuarioLogado)
 			);
 
-			navigate("/dashboard");
+			navigate("/atendimento");
 		} catch (error: any) {
 			setErrors({
 				usuario: "",
@@ -91,103 +92,85 @@ export function Login() {
 	}
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-[var(--background)] px-4">
-			<div className="w-full max-w-md">
-				<div className="mb-8">
-					<Logo />
-				</div>
+		<AuthLayout>
+			<AuthCard
+				title="Bem-vindo"
+				description="Entre para acessar sua conta."
+			>
+				<form
+					onSubmit={handleLogin}
+					className="space-y-4"
+				>
+					<Input
+						label="Usuário"
+						placeholder="Digite seu usuário"
+						value={usuario}
+						onChange={(e) => {
+							setUsuario(e.target.value);
 
-				<div className="bg-[var(--card)] rounded-3xl shadow-lg border border-[var(--border)] p-6">
-					<div className="text-center mb-8">
-						<h2 className="text-2xl font-bold text-[var(--text)]">
-							Bem-vindo
-						</h2>
+							if (errors.usuario) {
+								setErrors((prev) => ({
+									...prev,
+									usuario: "",
+								}));
+							}
+						}}
+						error={errors.usuario}
+					/>
 
-						<p className="text-[var(--text-secondary)] mt-2">
-							Entre para acessar sua conta.
-						</p>
-					</div>
+					<Input
+						label="Senha"
+						type="password"
+						placeholder="Digite sua senha"
+						value={senha}
+						onChange={(e) => {
+							setSenha(e.target.value);
 
-					<form
-						onSubmit={handleLogin}
-						className="space-y-4"
+							if (errors.senha) {
+								setErrors((prev) => ({
+									...prev,
+									senha: "",
+								}));
+							}
+						}}
+						error={errors.senha}
+					/>
+
+					{errors.geral && (
+						<div
+							className="
+								rounded-xl
+								border
+								border-red-200
+								bg-red-50
+								p-3
+								text-sm
+								text-red-600
+							"
+						>
+							{errors.geral}
+						</div>
+					)}
+
+					<Button
+						type="submit"
+						disabled={loading}
 					>
-						<Input
-							label="Usuário"
-							placeholder="Digite seu usuário"
-							value={usuario}
-							onChange={(e) => {
-								setUsuario(e.target.value);
+						{loading
+							? "Entrando..."
+							: "Entrar"}
+					</Button>
+				</form>
 
-								if (errors.usuario) {
-									setErrors((prev) => ({
-										...prev,
-										usuario: "",
-									}));
-								}
-							}}
-							error={errors.usuario}
-						/>
-
-						<Input
-							label="Senha"
-							type="password"
-							placeholder="Digite sua senha"
-							value={senha}
-							onChange={(e) => {
-								setSenha(e.target.value);
-
-								if (errors.senha) {
-									setErrors((prev) => ({
-										...prev,
-										senha: "",
-									}));
-								}
-							}}
-							error={errors.senha}
-						/>
-
-						{errors.geral && (
-							<div
-								className="
-                  rounded-xl
-                  border
-                  border-red-200
-                  bg-red-50
-                  p-3
-                  text-sm
-                  text-red-600
-                "
-							>
-								{errors.geral}
-							</div>
-						)}
-
-						<Button
-							type="submit"
-							disabled={loading}
-						>
-							{loading
-								? "Entrando..."
-								: "Entrar"}
-						</Button>
-					</form>
-
-					<div className="mt-6 text-center">
-						<Link
-							to="/recuperar-senha"
-							className="text-[var(--primary)] hover:underline text-sm"
-						>
-							Esqueci minha senha
-						</Link>
-					</div>
+				<div className="mt-6 text-center">
+					<Link
+						to="/recuperar-senha"
+						className="text-[var(--primary)] hover:underline text-sm"
+					>
+						Esqueci minha senha
+					</Link>
 				</div>
-
-				<p className="text-center text-sm text-[var(--text-secondary)] mt-6">
-					© {new Date().getFullYear()} Aura
-					Soluções Tecnológicas
-				</p>
-			</div>
-		</div>
+			</AuthCard>
+		</AuthLayout>
 	);
 }
