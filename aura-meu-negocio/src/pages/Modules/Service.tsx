@@ -1,3 +1,10 @@
+import {
+	Plus,
+	MoreHorizontal,
+} from "lucide-react";
+
+import { DashboardLayout } from "../../components/DashboardLayout";
+
 export function Service() {
 	const colunas = [
 		{
@@ -69,108 +76,188 @@ export function Service() {
 	];
 
 	return (
-		<div className="p-8 h-full">
-			<h1 className="text-4xl font-bold text-slate-900">
-				Atendimento
-			</h1>
+		<DashboardLayout>
+			<div className="h-full flex flex-col">
+				{/* Header */}
+				<div className="border-b bg-white px-8 py-6">
+					<h1 className="text-3xl font-bold text-slate-900">
+						Atendimento
+					</h1>
 
-			<p className="text-slate-500 mt-1 mb-8">
-				Acompanhe todas as conversas em um só lugar.
-			</p>
+					<p className="text-slate-500 mt-1">
+						Acompanhe todos os atendimentos em tempo real.
+					</p>
+				</div>
 
-			<div className="flex gap-4 overflow-x-auto pb-4">
-				{colunas.map((coluna) => (
-					<div
-						key={coluna.titulo}
-						className="min-w-[320px]"
-					>
-						<div className="bg-white border rounded-2xl p-4 flex items-center justify-between mb-4">
-							<div className="flex items-center gap-3">
-								<div className="w-2 h-2 rounded-full bg-cyan-500" />
+				{/* Kanban */}
+				<div className="flex-1 overflow-x-auto p-6">
+					<div className="flex gap-6 min-w-max">
+						{colunas.map((coluna) => (
+							<div
+								key={coluna.titulo}
+								className="
+									w-[360px]
+									flex-shrink-0
+									bg-slate-100
+									rounded-3xl
+									p-4
+								"
+							>
+								{/* Cabeçalho da coluna */}
+								<div className="flex items-center justify-between mb-5">
+									<div className="flex items-center gap-3">
+										<div className="w-2 h-2 rounded-full bg-cyan-500" />
 
-								<span className="font-semibold">
-									{coluna.titulo}
-								</span>
+										<h2 className="font-semibold text-slate-800">
+											{coluna.titulo}
+										</h2>
 
-								<span className="bg-cyan-500 text-white text-xs px-3 py-1 rounded-full">
-									{coluna.total}
-								</span>
-							</div>
+										<span
+											className="
+												bg-white
+												text-slate-600
+												text-xs
+												font-medium
+												px-2.5
+												py-1
+												rounded-full
+											"
+										>
+											{coluna.total}
+										</span>
+									</div>
 
-							<button className="text-xl">
-								+
-							</button>
-						</div>
-
-						<div className="space-y-4">
-							{coluna.clientes.map(
-								(cliente) => (
-									<div
-										key={`${cliente.nome}-${cliente.hora}`}
-										className="bg-white border rounded-3xl p-4 shadow-sm hover:shadow-md transition"
+									<button
+										className="
+											w-8
+											h-8
+											rounded-lg
+											hover:bg-white
+											flex
+											items-center
+											justify-center
+											transition
+										"
 									>
-										<div className="flex justify-between">
-											<div className="flex gap-3">
-												<div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm">
-													{cliente.nome
-														.split(
-															" "
-														)
-														.map(
-															(
-																n
-															) =>
-																n[0]
-														)
-														.slice(
-															0,
-															2
-														)
-														.join(
-															""
-														)}
+										<Plus size={18} />
+									</button>
+								</div>
+
+								{/* Cards */}
+								<div className="space-y-4">
+									{coluna.clientes.map(
+										(cliente) => (
+											<div
+												key={`${cliente.nome}-${cliente.hora}`}
+												className="
+													bg-white
+													rounded-2xl
+													p-4
+													shadow-sm
+													border
+													border-slate-100
+													hover:shadow-md
+													cursor-pointer
+													transition
+												"
+											>
+												<div className="flex justify-between">
+													<div className="flex gap-3">
+														<div
+															className="
+																w-10
+																h-10
+																rounded-full
+																bg-cyan-100
+																text-cyan-700
+																font-semibold
+																flex
+																items-center
+																justify-center
+															"
+														>
+															{cliente.nome
+																.split(
+																	" "
+																)
+																.map(
+																	(
+																		n
+																	) =>
+																		n[0]
+																)
+																.slice(
+																	0,
+																	2
+																)
+																.join(
+																	""
+																)}
+														</div>
+
+														<div>
+															<h3 className="font-semibold text-slate-900">
+																{
+																	cliente.nome
+																}
+															</h3>
+
+															<p className="text-xs text-slate-500">
+																{
+																	cliente.hora
+																}
+															</p>
+														</div>
+													</div>
+
+													<button
+														className="
+															text-slate-400
+															hover:text-slate-700
+														"
+													>
+														<MoreHorizontal
+															size={
+																18
+															}
+														/>
+													</button>
 												</div>
 
-												<div>
-													<h3 className="font-semibold">
-														{
-															cliente.nome
-														}
-													</h3>
+												<p className="mt-4 text-sm text-slate-600">
+													{
+														cliente.mensagem
+													}
+												</p>
 
-													<p className="text-sm text-slate-500">
+												<div className="mt-4">
+													<span
+														className="
+															inline-flex
+															items-center
+															rounded-full
+															bg-cyan-50
+															text-cyan-700
+															px-3
+															py-1
+															text-xs
+															font-medium
+														"
+													>
 														{
-															cliente.hora
+															cliente.canal
 														}
-													</p>
+													</span>
 												</div>
 											</div>
-
-											<button>
-												⋯
-											</button>
-										</div>
-
-										<div className="mt-4 text-sm text-slate-500">
-											{
-												cliente.mensagem
-											}
-										</div>
-
-										<div className="mt-4">
-											<span className="bg-blue-100 text-blue-600 text-xs font-medium px-3 py-1 rounded-full">
-												{
-													cliente.canal
-												}
-											</span>
-										</div>
-									</div>
-								)
-							)}
-						</div>
+										)
+									)}
+								</div>
+							</div>
+						))}
 					</div>
-				))}
+				</div>
 			</div>
-		</div>
+		</DashboardLayout>
 	);
 }
