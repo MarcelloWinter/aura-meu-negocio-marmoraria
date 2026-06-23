@@ -1,8 +1,3 @@
-import {
-	Plus,
-	MoreHorizontal,
-} from "lucide-react";
-
 import { DashboardLayout } from "../../components/DashboardLayout";
 
 export function Service() {
@@ -93,14 +88,16 @@ export function Service() {
 	return (
 		<DashboardLayout>
 			<div className="h-full flex flex-col">
-				<div className="border-b bg-white px-8 py-6">
-					<h1 className="text-3xl font-bold text-slate-900">
-						Atendimento
-					</h1>
+				<div className="border-b bg-white px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row gap-2 sm:gap-0 justify-between sm:items-center">
+					<div>
+						<h1 className="text-xl sm:text-3xl font-bold text-slate-900">
+							Atendimento
+						</h1>
 
-					<p className="text-slate-500 mt-1">
-						Acompanhe todos os atendimentos em tempo real.
-					</p>
+						<p className="text-slate-500 mt-1 text-sm">
+							Acompanhe todos os atendimentos em tempo real.
+						</p>
+					</div>
 				</div>
 
 				<div className="flex-1 overflow-x-auto p-6">

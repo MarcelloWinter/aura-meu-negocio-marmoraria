@@ -5,6 +5,7 @@ import { ForgotPassword } from "./pages/Auth/ForgotPassword";
 import { VerifyCode } from "./pages/Auth/VerifyCode";
 import { ResetPassword } from "./pages/Auth/ResetPassword";
 import { Service } from "./pages/Modules/Service";
+import { Agenda } from "./pages/Modules/Agenda";
 import { SidebarProvider } from "./contexts/SidebarContext";
 
 export function App() {
@@ -17,6 +18,7 @@ export function App() {
 					<Route path="/verificar-codigo" element={<VerifyCode />} />
 					<Route path="/resetar-senha" element={<ResetPassword />} />
 					<Route path="/atendimento" element={<Service />} />
+					<Route path="/agenda" element={<Agenda />} />
 				</Routes>
 			</BrowserRouter>
 		</SidebarProvider>
