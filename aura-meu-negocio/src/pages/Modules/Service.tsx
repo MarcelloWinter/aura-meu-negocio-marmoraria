@@ -8,68 +8,83 @@ import { DashboardLayout } from "../../components/DashboardLayout";
 export function Service() {
 	const colunas = [
 		{
-			titulo: "Novo",
+			titulo: "Início",
 			total: 2,
 			clientes: [
 				{
 					nome: "Lucas Andrade",
 					hora: "09:12",
 					mensagem: "Olá, tudo bem?",
-					canal: "WhatsApp",
 				},
 				{
 					nome: "Beatriz Souza",
 					hora: "09:40",
 					mensagem: "Quero agendar",
-					canal: "Instagram",
 				},
 			],
 		},
 		{
-			titulo: "Em Atendimento",
+			titulo: "Agendamento",
 			total: 3,
 			clientes: [
 				{
 					nome: "Marina L.",
 					hora: "10:05",
 					mensagem: "Pode ser às 14h?",
-					canal: "WhatsApp",
 				},
 				{
 					nome: "Carlos Mendes",
 					hora: "10:22",
 					mensagem: "Vou confirmar",
-					canal: "Telefone",
 				},
 			],
 		},
 		{
-			titulo: "Agendado",
+			titulo: "Cancelamento",
 			total: 2,
 			clientes: [
 				{
 					nome: "Pedro Lima",
 					hora: "11:30",
 					mensagem: "Barba — confirmado",
-					canal: "Agenda",
 				},
 				{
 					nome: "Ana Costa",
 					hora: "10:00",
 					mensagem: "Corte feminino",
-					canal: "Agenda",
 				},
 			],
 		},
 		{
-			titulo: "Aguardando Retorno",
+			titulo: "Pagamento",
 			total: 1,
 			clientes: [
 				{
 					nome: "Rafa Nunes",
 					hora: "Ontem",
 					mensagem: "Aguardando proposta",
-					canal: "Email",
+				},
+			],
+		},
+		{
+			titulo: "Atendimento Humano",
+			total: 1,
+			clientes: [
+				{
+					nome: "Rafa Nunes",
+					hora: "Ontem",
+					mensagem: "Aguardando proposta",
+				},
+			],
+		},
+		{
+			titulo: "Concluído",
+			total: 1,
+			clientes: [
+				{
+					nome: "Rafa Nunes",
+					hora: "Ontem",
+					mensagem: "Aguardando proposta",
 				},
 			],
 		},
@@ -78,7 +93,6 @@ export function Service() {
 	return (
 		<DashboardLayout>
 			<div className="h-full flex flex-col">
-				{/* Header */}
 				<div className="border-b bg-white px-8 py-6">
 					<h1 className="text-3xl font-bold text-slate-900">
 						Atendimento
@@ -89,7 +103,6 @@ export function Service() {
 					</p>
 				</div>
 
-				{/* Kanban */}
 				<div className="flex-1 overflow-x-auto p-6">
 					<div className="flex gap-6 min-w-max">
 						{colunas.map((coluna) => (
@@ -103,7 +116,6 @@ export function Service() {
 									p-4
 								"
 							>
-								{/* Cabeçalho da coluna */}
 								<div className="flex items-center justify-between mb-5">
 									<div className="flex items-center gap-3">
 										<div className="w-2 h-2 rounded-full bg-cyan-500" />
@@ -127,23 +139,8 @@ export function Service() {
 										</span>
 									</div>
 
-									<button
-										className="
-											w-8
-											h-8
-											rounded-lg
-											hover:bg-white
-											flex
-											items-center
-											justify-center
-											transition
-										"
-									>
-										<Plus size={18} />
-									</button>
 								</div>
 
-								{/* Cards */}
 								<div className="space-y-4">
 									{coluna.clientes.map(
 										(cliente) => (
@@ -209,19 +206,6 @@ export function Service() {
 															</p>
 														</div>
 													</div>
-
-													<button
-														className="
-															text-slate-400
-															hover:text-slate-700
-														"
-													>
-														<MoreHorizontal
-															size={
-																18
-															}
-														/>
-													</button>
 												</div>
 
 												<p className="mt-4 text-sm text-slate-600">
@@ -229,26 +213,6 @@ export function Service() {
 														cliente.mensagem
 													}
 												</p>
-
-												<div className="mt-4">
-													<span
-														className="
-															inline-flex
-															items-center
-															rounded-full
-															bg-cyan-50
-															text-cyan-700
-															px-3
-															py-1
-															text-xs
-															font-medium
-														"
-													>
-														{
-															cliente.canal
-														}
-													</span>
-												</div>
 											</div>
 										)
 									)}
