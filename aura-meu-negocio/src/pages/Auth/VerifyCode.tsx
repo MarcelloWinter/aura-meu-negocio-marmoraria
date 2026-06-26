@@ -5,7 +5,7 @@ import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { AuthLayout } from "../../components/AuthLayout";
 import { AuthCard } from "../../components/AuthCard";
-import { api } from "../../services/api";
+import { api, getApiErrorMessage } from "../../services/api";
 
 export function VerifyCode() {
 	const navigate = useNavigate();
@@ -18,17 +18,12 @@ export function VerifyCode() {
 		geral: "",
 	});
 
-	const [successMessage, setSuccessMessage] =
-		useState("");
+	const [successMessage, setSuccessMessage] = useState("");
 
-	async function handleSubmit(
-		e: React.FormEvent<HTMLFormElement>
-	) {
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 
-		const usuario = localStorage.getItem(
-			"@aura:reset-user"
-		);
+		const usuario = localStorage.getItem("@aura:reset-user");
 
 		const novosErros = {
 			codigo: "",
@@ -36,8 +31,7 @@ export function VerifyCode() {
 		};
 
 		if (!codigo.trim()) {
-			novosErros.codigo =
-				"Informe o código.";
+			novosErros.codigo = "Informe o código.";
 		}
 
 		if (novosErros.codigo) {
@@ -48,8 +42,7 @@ export function VerifyCode() {
 		if (!usuario) {
 			setErrors({
 				codigo: "",
-				geral:
-					"Sessão de recuperação inválida. Tente novamente.",
+				geral: "Sessão de recuperação inválida. Tente novamente.",
 			});
 
 			return;
@@ -65,26 +58,18 @@ export function VerifyCode() {
 
 			setSuccessMessage("");
 
-			await api.post(
-				"/auth/verify-code",
-				{
-					usuario,
-					codigo,
-				}
-			);
+			await api.post("/auth/verify-code", {
+				usuario,
+				codigo,
+			});
 
-			localStorage.setItem(
-				"@aura:code-validated",
-				"true"
-			);
+			localStorage.setItem("@aura:code-validated", "true");
 
 			navigate("/resetar-senha");
-		} catch (error: any) {
+		} catch (error) {
 			setErrors({
 				codigo: "",
-				geral:
-					error?.response?.data?.message ||
-					"Código inválido ou expirado.",
+				geral: getApiErrorMessage(error, "Código inválido ou expirado."),
 			});
 		} finally {
 			setLoading(false);
@@ -92,15 +77,12 @@ export function VerifyCode() {
 	}
 
 	async function handleResendCode() {
-		const usuario = localStorage.getItem(
-			"@aura:reset-user"
-		);
+		const usuario = localStorage.getItem("@aura:reset-user");
 
 		if (!usuario) {
 			setErrors({
 				codigo: "",
-				geral:
-					"Sessão de recuperação inválida. Tente novamente.",
+				geral: "Sessão de recuperação inválida. Tente novamente.",
 			});
 
 			return;
@@ -109,12 +91,9 @@ export function VerifyCode() {
 		try {
 			setLoading(true);
 
-			await api.post(
-				"/auth/send-reset-code",
-				{
-					usuario,
-				}
-			);
+			await api.post("/auth/send-reset-code", {
+				usuario,
+			});
 
 			setErrors({
 				codigo: "",
@@ -124,12 +103,10 @@ export function VerifyCode() {
 			setSuccessMessage(
 				"Enviamos um novo código de verificação para o WhatsApp cadastrado."
 			);
-		} catch (error: any) {
+		} catch (error) {
 			setErrors({
 				codigo: "",
-				geral:
-					error?.response?.data?.message ||
-					"Não foi possível reenviar o código.",
+				geral: getApiErrorMessage(error, "Não foi possível reenviar o código."),
 			});
 
 			setSuccessMessage("");
@@ -144,27 +121,16 @@ export function VerifyCode() {
 				title="Código de Verificação"
 				description="Digite o código de 6 dígitos enviado para seu WhatsApp."
 			>
-				<form
-					onSubmit={handleSubmit}
-					className="space-y-4"
-				>
+				<form onSubmit={handleSubmit} className="space-y-4">
 					<Input
 						label="Código"
 						placeholder="000000"
 						maxLength={6}
 						value={codigo}
 						onChange={(e) => {
-							setCodigo(
-								e.target.value.replace(
-									/\D/g,
-									""
-								)
-							);
+							setCodigo(e.target.value.replace(/\D/g, ""));
 
-							if (
-								errors.codigo ||
-								errors.geral
-							) {
+							if (errors.codigo || errors.geral) {
 								setErrors({
 									codigo: "",
 									geral: "",
@@ -186,13 +152,9 @@ export function VerifyCode() {
 								text-green-700
 							"
 						>
-							<div className="font-semibold">
-								✓ Código reenviado
-							</div>
+							<div className="font-semibold">✓ Código reenviado</div>
 
-							<div className="mt-1">
-								{successMessage}
-							</div>
+							<div className="mt-1">{successMessage}</div>
 						</div>
 					)}
 
@@ -212,13 +174,8 @@ export function VerifyCode() {
 						</div>
 					)}
 
-					<Button
-						type="submit"
-						disabled={loading}
-					>
-						{loading
-							? "Validando..."
-							: "Confirmar Código"}
+					<Button type="submit" disabled={loading}>
+						{loading ? "Validando..." : "Confirmar Código"}
 					</Button>
 
 					<Button

@@ -5,7 +5,6 @@ import {
 	Settings,
 	Users,
 	Wallet,
-	X,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -49,10 +48,7 @@ const menu = [
 	},
 ];
 
-export function Sidebar({
-	isOpen,
-	onClose,
-}: SidebarProps) {
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
 	return (
 		<>
 			{isOpen && (
@@ -76,11 +72,7 @@ export function Sidebar({
 					transition-all
 					duration-300
 
-					${
-						isOpen
-							? "translate-x-0 w-72"
-							: "-translate-x-full lg:translate-x-0 lg:w-20"
-					}
+					${isOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0 lg:w-20"}
 				`}
 			>
 				<div className="h-16 border-b px-4 flex items-center justify-between">
@@ -108,20 +100,12 @@ export function Sidebar({
 								className={({ isActive }) =>
 									`
 										flex items-center
-										${
-											isOpen
-												? "gap-3 px-4 justify-start"
-												: "justify-center px-2"
-										}
+										${isOpen ? "gap-3 px-4 justify-start" : "justify-center px-2"}
 										py-3
 										rounded-xl
 										transition
 
-										${
-											isActive
-												? "bg-blue-50 text-blue-600"
-												: "hover:bg-slate-100"
-										}
+										${isActive ? "bg-blue-50 text-blue-600" : "hover:bg-slate-100"}
 									`
 								}
 							>
@@ -132,11 +116,7 @@ export function Sidebar({
 										transition-all
 										duration-200
 										whitespace-nowrap
-										${
-											isOpen
-												? "opacity-100 ml-0"
-												: "opacity-0 w-0 overflow-hidden"
-										}
+										${isOpen ? "opacity-100 ml-0" : "opacity-0 w-0 overflow-hidden"}
 									`}
 								>
 									{item.label}

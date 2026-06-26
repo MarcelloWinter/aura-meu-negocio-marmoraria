@@ -4,9 +4,7 @@ interface HeaderProps {
 	onMenuClick: () => void;
 }
 
-export function Header({
-	onMenuClick,
-}: HeaderProps) {
+export function Header({ onMenuClick }: HeaderProps) {
 	return (
 		<header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
 			<div className="flex items-center gap-3">
@@ -17,9 +15,7 @@ export function Header({
 					<Menu size={20} />
 				</button>
 
-				<h2 className="font-semibold">
-					Marmoraria Decore Granitos
-				</h2>
+				<h2 className="font-semibold">Marmoraria Decore Granitos</h2>
 			</div>
 
 			<div className="flex items-center gap-4">

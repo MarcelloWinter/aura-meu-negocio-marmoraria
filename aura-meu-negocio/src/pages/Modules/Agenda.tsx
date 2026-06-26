@@ -1,12 +1,6 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import {
-	format,
-	startOfWeek,
-	addDays,
-	addWeeks,
-	subWeeks,
-} from "date-fns";
+import { format, startOfWeek, addDays, addWeeks, subWeeks } from "date-fns";
 
 import { ptBR } from "date-fns/locale";
 
@@ -62,9 +56,7 @@ export function Agenda() {
 	// Semana começando na segunda
 	const startWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
 
-	const dias = Array.from({ length: 7 }).map((_, i) =>
-		addDays(startWeek, i)
-	);
+	const dias = Array.from({ length: 7 }).map((_, i) => addDays(startWeek, i));
 
 	// 08h até 20h
 	const horas = Array.from({ length: 24 }).map((_, i) => 0 + i);
@@ -75,46 +67,44 @@ export function Agenda() {
 		<DashboardLayout>
 			<div className="h-full flex flex-col">
 				{/* HEADER */}
-                <div className="border-b border-slate-200 bg-white px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between sm:items-center">
-                    <div>
-                        <h1 className="text-xl sm:text-3xl font-bold text-slate-900">
-                            Agenda
-                        </h1>
+				<div className="border-b border-slate-200 bg-white px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between sm:items-center">
+					<div>
+						<h1 className="text-xl sm:text-3xl font-bold text-slate-900">
+							Agenda
+						</h1>
 
-                        <p className="text-slate-500 mt-1 capitalize text-sm">
-                            {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-                        </p>
-                    </div>
+						<p className="text-slate-500 mt-1 capitalize text-sm">
+							{format(currentDate, "MMMM yyyy", { locale: ptBR })}
+						</p>
+					</div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
-                            className="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-sm"
-                        >
-                            ←
-                        </button>
+					<div className="flex flex-wrap items-center gap-2">
+						<button
+							onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
+							className="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-sm"
+						>
+							←
+						</button>
 
-                        <button className="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-sm">
-                            Hoje
-                        </button>
+						<button className="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-sm">
+							Hoje
+						</button>
 
-                        <button
-                            onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
-                            className="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-sm"
-                        >
-                            →
-                        </button>
+						<button
+							onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
+							className="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-sm"
+						>
+							→
+						</button>
 
-                        <button className="ml-0 sm:ml-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl transition text-sm">
-                            <Plus size={14} />
+						<button className="ml-0 sm:ml-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl transition text-sm">
+							<Plus size={14} />
 
-                            {/* Esconde texto no mobile */}
-                            <span className="hidden sm:inline">
-                                Novo agendamento
-                            </span>
-                        </button>
-                    </div>
-                </div>
+							{/* Esconde texto no mobile */}
+							<span className="hidden sm:inline">Novo agendamento</span>
+						</button>
+					</div>
+				</div>
 
 				{/* GRID */}
 				<div className="flex-1 overflow-auto p-6">
@@ -125,20 +115,19 @@ export function Agenda() {
 
 							{dias.map((dia, index) => {
 								const isToday =
-									new Date().toDateString() ===
-									dia.toDateString();
+									new Date().toDateString() === dia.toDateString();
 
 								return (
 									<div
 										key={index}
 										className={`text-center py-3 ${
-											isToday
-												? "bg-blue-50"
-												: ""
+											isToday ? "bg-blue-50" : ""
 										}`}
 									>
 										<p className="text-xs text-slate-500 font-medium">
-											{format(dia, "EEE", { locale: ptBR }).toUpperCase().slice(0, 3)}
+											{format(dia, "EEE", { locale: ptBR })
+												.toUpperCase()
+												.slice(0, 3)}
 										</p>
 
 										<p className="text-lg font-semibold text-slate-800">
@@ -179,9 +168,7 @@ export function Agenda() {
 
 									{/* Eventos */}
 									{eventos
-										.filter(
-											(e) => e.dia === diaIndex
-										)
+										.filter((e) => e.dia === diaIndex)
 										.map((evento) => (
 											<div
 												key={evento.id}
@@ -192,25 +179,17 @@ export function Agenda() {
 													rounded-xl p-2 text-xs shadow-sm
 												`}
 												style={{
-													top:
-														(evento.hora - 8) *
-														HOUR_HEIGHT,
-													height:
-														evento.duracao *
-														HOUR_HEIGHT,
+													top: (evento.hora - 8) * HOUR_HEIGHT,
+													height: evento.duracao * HOUR_HEIGHT,
 												}}
 											>
 												<p className="font-semibold text-slate-800">
 													{evento.nome}
 												</p>
 
-												<p className="text-slate-600">
-													{evento.servico}
-												</p>
+												<p className="text-slate-600">{evento.servico}</p>
 
-												<p className="text-slate-400">
-													{evento.profissional}
-												</p>
+												<p className="text-slate-400">{evento.profissional}</p>
 											</div>
 										))}
 								</div>

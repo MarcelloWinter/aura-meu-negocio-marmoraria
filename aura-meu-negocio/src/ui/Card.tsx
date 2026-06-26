@@ -5,10 +5,7 @@ interface CardProps {
 	className?: string;
 }
 
-export function Card({
-	children,
-	className = "",
-}: CardProps) {
+export function Card({ children, className = "" }: CardProps) {
 	return (
 		<div
 			className={`

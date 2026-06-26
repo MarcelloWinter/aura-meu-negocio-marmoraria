@@ -135,15 +135,13 @@ export function Service() {
 											{coluna.total}
 										</span>
 									</div>
-
 								</div>
 
 								<div className="space-y-4">
-									{coluna.clientes.map(
-										(cliente) => (
-											<div
-												key={`${cliente.nome}-${cliente.hora}`}
-												className="
+									{coluna.clientes.map((cliente) => (
+										<div
+											key={`${cliente.nome}-${cliente.hora}`}
+											className="
 													bg-white
 													rounded-2xl
 													p-4
@@ -154,11 +152,11 @@ export function Service() {
 													cursor-pointer
 													transition
 												"
-											>
-												<div className="flex justify-between">
-													<div className="flex gap-3">
-														<div
-															className="
+										>
+											<div className="flex justify-between">
+												<div className="flex gap-3">
+													<div
+														className="
 																w-10
 																h-10
 																rounded-full
@@ -169,50 +167,31 @@ export function Service() {
 																items-center
 																justify-center
 															"
-														>
-															{cliente.nome
-																.split(
-																	" "
-																)
-																.map(
-																	(
-																		n
-																	) =>
-																		n[0]
-																)
-																.slice(
-																	0,
-																	2
-																)
-																.join(
-																	""
-																)}
-														</div>
+													>
+														{cliente.nome
+															.split(" ")
+															.map((n) => n[0])
+															.slice(0, 2)
+															.join("")}
+													</div>
 
-														<div>
-															<h3 className="font-semibold text-slate-900">
-																{
-																	cliente.nome
-																}
-															</h3>
+													<div>
+														<h3 className="font-semibold text-slate-900">
+															{cliente.nome}
+														</h3>
 
-															<p className="text-xs text-slate-500">
-																{
-																	cliente.hora
-																}
-															</p>
-														</div>
+														<p className="text-xs text-slate-500">
+															{cliente.hora}
+														</p>
 													</div>
 												</div>
-
-												<p className="mt-4 text-sm text-slate-600">
-													{
-														cliente.mensagem
-													}
-												</p>
 											</div>
-										)
-									)}
+
+											<p className="mt-4 text-sm text-slate-600">
+												{cliente.mensagem}
+											</p>
+										</div>
+									))}
 								</div>
 							</div>
 						))}

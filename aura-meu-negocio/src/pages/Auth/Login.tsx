@@ -5,10 +5,12 @@ import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { AuthCard } from "../../components/AuthCard";
 import { AuthLayout } from "../../components/AuthLayout";
-import { api } from "../../services/api";
+import { api, getApiErrorMessage } from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 export function Login() {
 	const navigate = useNavigate();
+	const { login } = useAuth();
 
 	const [usuario, setUsuario] = useState("");
 	const [senha, setSenha] = useState("");
@@ -20,9 +22,7 @@ export function Login() {
 		geral: "",
 	});
 
-	async function handleLogin(
-		e: React.FormEvent<HTMLFormElement>
-	) {
+	async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 
 		const novosErros = {
@@ -39,10 +39,7 @@ export function Login() {
 			novosErros.senha = "Informe a senha.";
 		}
 
-		if (
-			novosErros.usuario ||
-			novosErros.senha
-		) {
+		if (novosErros.usuario || novosErros.senha) {
 			setErrors(novosErros);
 			return;
 		}
@@ -56,35 +53,21 @@ export function Login() {
 				geral: "",
 			});
 
-			const response = await api.post(
-				"/auth/login",
-				{
-					usuario,
-					senha,
-				}
-			);
+			const response = await api.post("/auth/login", {
+				usuario,
+				senha,
+			});
 
-			const { token, usuario: usuarioLogado } =
-				response.data;
+			const { token, usuario: usuarioLogado } = response.data;
 
-			localStorage.setItem(
-				"@aura:token",
-				token
-			);
-
-			localStorage.setItem(
-				"@aura:user",
-				JSON.stringify(usuarioLogado)
-			);
+			login(token, usuarioLogado);
 
 			navigate("/atendimento");
-		} catch (error: any) {
+		} catch (error) {
 			setErrors({
 				usuario: "",
 				senha: "",
-				geral:
-					error?.response?.data?.message ||
-					"Usuário ou senha inválidos.",
+				geral: getApiErrorMessage(error, "Usuário ou senha inválidos."),
 			});
 		} finally {
 			setLoading(false);
@@ -93,14 +76,8 @@ export function Login() {
 
 	return (
 		<AuthLayout>
-			<AuthCard
-				title="Bem-vindo"
-				description="Entre para acessar sua conta."
-			>
-				<form
-					onSubmit={handleLogin}
-					className="space-y-4"
-				>
+			<AuthCard title="Bem-vindo" description="Entre para acessar sua conta.">
+				<form onSubmit={handleLogin} className="space-y-4">
 					<Input
 						label="Usuário"
 						placeholder="Digite seu usuário"
@@ -152,13 +129,8 @@ export function Login() {
 						</div>
 					)}
 
-					<Button
-						type="submit"
-						disabled={loading}
-					>
-						{loading
-							? "Entrando..."
-							: "Entrar"}
+					<Button type="submit" disabled={loading}>
+						{loading ? "Entrando..." : "Entrar"}
 					</Button>
 				</form>
 

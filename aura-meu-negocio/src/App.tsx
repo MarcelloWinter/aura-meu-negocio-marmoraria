@@ -6,11 +6,11 @@ import { VerifyCode } from "./pages/Auth/VerifyCode";
 import { ResetPassword } from "./pages/Auth/ResetPassword";
 import { Service } from "./pages/Modules/Service";
 import { Agenda } from "./pages/Modules/Agenda";
-import { SidebarProvider } from "./contexts/SidebarContext";
+import { AuthProvider } from "./contexts/AuthContext";
 
 export function App() {
 	return (
-		<SidebarProvider>
+		<AuthProvider>
 			<BrowserRouter>
 				<Routes>
 					<Route path="/" element={<Login />} />
@@ -21,7 +21,7 @@ export function App() {
 					<Route path="/agenda" element={<Agenda />} />
 				</Routes>
 			</BrowserRouter>
-		</SidebarProvider>
+		</AuthProvider>
 	);
 }
 

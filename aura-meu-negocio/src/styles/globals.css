@@ -1,22 +1,22 @@
 :root {
 	/* CORES */
 
-	--primary: #2563EB;
-	--primary-hover: #1D4ED8;
+	--primary: #2563eb;
+	--primary-hover: #1d4ed8;
 
-	--background: #F8FAFC;
-	--card: #FFFFFF;
+	--background: #f8fafc;
+	--card: #ffffff;
 
-	--text: #0F172A;
-	--text-secondary: #64748B;
+	--text: #0f172a;
+	--text-secondary: #64748b;
 
-	--border: #E2E8F0;
+	--border: #e2e8f0;
 
 	/* STATUS */
 
-	--success: #16A34A;
-	--warning: #F59E0B;
-	--danger: #DC2626;
+	--success: #16a34a;
+	--warning: #f59e0b;
+	--danger: #dc2626;
 
 	/* BORDAS */
 

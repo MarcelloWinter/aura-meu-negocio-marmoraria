@@ -3,56 +3,39 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
-import { Logo } from "../../components/Logo";
-import { Background } from "../../components/Background";
 import { AuthLayout } from "../../components/AuthLayout";
 import { AuthCard } from "../../components/AuthCard";
-import { api } from "../../services/api";
+import { api, getApiErrorMessage } from "../../services/api";
 
 export function ResetPassword() {
 	const navigate = useNavigate();
 
-	const [novaSenha, setNovaSenha] =
-		useState("");
+	const [novaSenha, setNovaSenha] = useState("");
 
-	const [
-		confirmarSenha,
-		setConfirmarSenha,
-	] = useState("");
+	const [confirmarSenha, setConfirmarSenha] = useState("");
 
-	const [loading, setLoading] =
-		useState(false);
+	const [loading, setLoading] = useState(false);
 
-	const [successMessage, setSuccessMessage] =
-		useState("");
+	const [successMessage, setSuccessMessage] = useState("");
 
-	const [errors, setErrors] =
-		useState({
-			novaSenha: "",
-			confirmarSenha: "",
-			geral: "",
-		});
+	const [errors, setErrors] = useState({
+		novaSenha: "",
+		confirmarSenha: "",
+		geral: "",
+	});
 
 	useEffect(() => {
-		const codeValidated =
-			localStorage.getItem(
-				"@aura:code-validated"
-			);
+		const codeValidated = localStorage.getItem("@aura:code-validated");
 
 		if (!codeValidated) {
 			navigate("/");
 		}
 	}, [navigate]);
 
-	async function handleSubmit(
-		e: React.FormEvent<HTMLFormElement>
-	) {
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 
-		const usuario =
-			localStorage.getItem(
-				"@aura:reset-user"
-			);
+		const usuario = localStorage.getItem("@aura:reset-user");
 
 		const novosErros = {
 			novaSenha: "",
@@ -61,28 +44,18 @@ export function ResetPassword() {
 		};
 
 		if (!novaSenha.trim()) {
-			novosErros.novaSenha =
-				"Informe a nova senha.";
+			novosErros.novaSenha = "Informe a nova senha.";
 		}
 
 		if (!confirmarSenha.trim()) {
-			novosErros.confirmarSenha =
-				"Confirme a nova senha.";
+			novosErros.confirmarSenha = "Confirme a nova senha.";
 		}
 
-		if (
-			novaSenha &&
-			confirmarSenha &&
-			novaSenha !== confirmarSenha
-		) {
-			novosErros.confirmarSenha =
-				"As senhas não coincidem.";
+		if (novaSenha && confirmarSenha && novaSenha !== confirmarSenha) {
+			novosErros.confirmarSenha = "As senhas não coincidem.";
 		}
 
-		if (
-			novosErros.novaSenha ||
-			novosErros.confirmarSenha
-		) {
+		if (novosErros.novaSenha || novosErros.confirmarSenha) {
 			setErrors(novosErros);
 			return;
 		}
@@ -91,8 +64,7 @@ export function ResetPassword() {
 			setErrors({
 				novaSenha: "",
 				confirmarSenha: "",
-				geral:
-					"Sessão de recuperação inválida. Tente novamente.",
+				geral: "Sessão de recuperação inválida. Tente novamente.",
 			});
 
 			return;
@@ -107,25 +79,16 @@ export function ResetPassword() {
 				geral: "",
 			});
 
-			await api.post(
-				"/auth/reset-password",
-				{
-					usuario,
-					novaSenha,
-				}
-			);
+			await api.post("/auth/reset-password", {
+				usuario,
+				novaSenha,
+			});
 
-			localStorage.removeItem(
-				"@aura:reset-user"
-			);
+			localStorage.removeItem("@aura:reset-user");
 
-			localStorage.removeItem(
-				"@aura:code-validated"
-			);
+			localStorage.removeItem("@aura:code-validated");
 
-			localStorage.removeItem(
-				"@aura:reset-user-id"
-			);
+			localStorage.removeItem("@aura:reset-user-id");
 
 			setSuccessMessage(
 				"Sua senha foi alterada com sucesso. Você será redirecionado para a tela de login em instantes."
@@ -134,13 +97,11 @@ export function ResetPassword() {
 			setTimeout(() => {
 				navigate("/");
 			}, 3000);
-		} catch (error: any) {
+		} catch (error) {
 			setErrors({
 				novaSenha: "",
 				confirmarSenha: "",
-				geral:
-					error?.response?.data?.message ||
-					"Não foi possível alterar a senha.",
+				geral: getApiErrorMessage(error, "Não foi possível alterar a senha."),
 			});
 		} finally {
 			setLoading(false);
@@ -153,10 +114,7 @@ export function ResetPassword() {
 				title="Criar Nova Senha"
 				description="Defina sua nova senha de acesso."
 			>
-				<form
-					onSubmit={handleSubmit}
-					className="space-y-4"
-				>
+				<form onSubmit={handleSubmit} className="space-y-4">
 					<Input
 						label="Nova senha"
 						type="password"
@@ -165,10 +123,7 @@ export function ResetPassword() {
 						onChange={(e) => {
 							setNovaSenha(e.target.value);
 
-							if (
-								errors.novaSenha ||
-								errors.geral
-							) {
+							if (errors.novaSenha || errors.geral) {
 								setErrors((prev) => ({
 									...prev,
 									novaSenha: "",
@@ -185,14 +140,9 @@ export function ResetPassword() {
 						placeholder="Confirme sua nova senha"
 						value={confirmarSenha}
 						onChange={(e) => {
-							setConfirmarSenha(
-								e.target.value
-							);
+							setConfirmarSenha(e.target.value);
 
-							if (
-								errors.confirmarSenha ||
-								errors.geral
-							) {
+							if (errors.confirmarSenha || errors.geral) {
 								setErrors((prev) => ({
 									...prev,
 									confirmarSenha: "",
@@ -200,9 +150,7 @@ export function ResetPassword() {
 								}));
 							}
 						}}
-						error={
-							errors.confirmarSenha
-						}
+						error={errors.confirmarSenha}
 					/>
 
 					{successMessage && (
@@ -217,13 +165,9 @@ export function ResetPassword() {
 								text-green-700
 							"
 						>
-							<div className="font-semibold">
-								✓ Senha alterada com sucesso
-							</div>
+							<div className="font-semibold">✓ Senha alterada com sucesso</div>
 
-							<div className="mt-1">
-								{successMessage}
-							</div>
+							<div className="mt-1">{successMessage}</div>
 						</div>
 					)}
 
@@ -243,16 +187,8 @@ export function ResetPassword() {
 						</div>
 					)}
 
-					<Button
-						type="submit"
-						disabled={
-							loading ||
-							!!successMessage
-						}
-					>
-						{loading
-							? "Alterando senha..."
-							: "Confirmar Nova Senha"}
+					<Button type="submit" disabled={loading || !!successMessage}>
+						{loading ? "Alterando senha..." : "Confirmar Nova Senha"}
 					</Button>
 				</form>
 			</AuthCard>

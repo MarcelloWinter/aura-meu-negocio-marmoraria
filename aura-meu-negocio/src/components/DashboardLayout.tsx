@@ -8,31 +8,17 @@ interface DashboardLayoutProps {
 	children: ReactNode;
 }
 
-export function DashboardLayout({
-	children,
-}: DashboardLayoutProps) {
-	const [sidebarOpen, setSidebarOpen] =
-		useState(true);
+export function DashboardLayout({ children }: DashboardLayoutProps) {
+	const [sidebarOpen, setSidebarOpen] = useState(true);
 
 	return (
 		<div className="h-screen flex bg-slate-50">
-			<Sidebar
-				isOpen={sidebarOpen}
-				onClose={() =>
-					setSidebarOpen(false)
-				}
-			/>
+			<Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<Header
-					onMenuClick={() =>
-						setSidebarOpen((prev) => !prev)
-					}
-				/>
+				<Header onMenuClick={() => setSidebarOpen((prev) => !prev)} />
 
-				<main className="flex-1 overflow-auto">
-					{children}
-				</main>
+				<main className="flex-1 overflow-auto">{children}</main>
 			</div>
 		</div>
 	);

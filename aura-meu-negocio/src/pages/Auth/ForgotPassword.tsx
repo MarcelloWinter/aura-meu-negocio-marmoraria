@@ -5,7 +5,7 @@ import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { AuthCard } from "../../components/AuthCard";
 import { AuthLayout } from "../../components/AuthLayout";
-import { api } from "../../services/api";
+import { api, getApiErrorMessage } from "../../services/api";
 
 export function ForgotPassword() {
 	const navigate = useNavigate();
@@ -18,9 +18,7 @@ export function ForgotPassword() {
 		geral: "",
 	});
 
-	async function handleSubmit(
-		e: React.FormEvent<HTMLFormElement>
-	) {
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 
 		const novosErros = {
@@ -29,8 +27,7 @@ export function ForgotPassword() {
 		};
 
 		if (!usuario.trim()) {
-			novosErros.usuario =
-				"Informe o usuário.";
+			novosErros.usuario = "Informe o usuário.";
 		}
 
 		if (novosErros.usuario) {
@@ -46,39 +43,25 @@ export function ForgotPassword() {
 				geral: "",
 			});
 
-			const response = await api.post(
-				"/auth/forgot-password",
-				{
-					usuario,
-				}
-			);
+			const response = await api.post("/auth/forgot-password", {
+				usuario,
+			});
 
-			await api.post(
-				"/auth/send-reset-code",
-				{
-					usuario,
-				}
-			);
+			await api.post("/auth/send-reset-code", {
+				usuario,
+			});
 
-			localStorage.setItem(
-				"@aura:reset-user",
-				usuario
-			);
+			localStorage.setItem("@aura:reset-user", usuario);
 
 			if (response.data.usuarioId) {
-				localStorage.setItem(
-					"@aura:reset-user-id",
-					response.data.usuarioId
-				);
+				localStorage.setItem("@aura:reset-user-id", response.data.usuarioId);
 			}
 
 			navigate("/verificar-codigo");
-		} catch (error: any) {
+		} catch (error) {
 			setErrors({
 				usuario: "",
-				geral:
-					error?.response?.data?.message ||
-					"Não foi possível enviar o código.",
+				geral: getApiErrorMessage(error, "Não foi possível enviar o código."),
 			});
 		} finally {
 			setLoading(false);
@@ -91,10 +74,7 @@ export function ForgotPassword() {
 				title="Recuperar Senha"
 				description="Informe seu usuário para redefinir sua senha."
 			>
-				<form
-					onSubmit={handleSubmit}
-					className="space-y-4"
-				>
+				<form onSubmit={handleSubmit} className="space-y-4">
 					<Input
 						label="Usuário"
 						placeholder="Digite seu usuário"
@@ -102,10 +82,7 @@ export function ForgotPassword() {
 						onChange={(e) => {
 							setUsuario(e.target.value);
 
-							if (
-								errors.usuario ||
-								errors.geral
-							) {
+							if (errors.usuario || errors.geral) {
 								setErrors({
 									usuario: "",
 									geral: "",
@@ -131,20 +108,11 @@ export function ForgotPassword() {
 						</div>
 					)}
 
-					<Button
-						type="submit"
-						disabled={loading}
-					>
-						{loading
-							? "Enviando código..."
-							: "Alterar Senha"}
+					<Button type="submit" disabled={loading}>
+						{loading ? "Enviando código..." : "Alterar Senha"}
 					</Button>
 
-					<Button
-						type="button"
-						onClick={() => navigate("/")}
-						variant="ghost"
-					>
+					<Button type="button" onClick={() => navigate("/")} variant="ghost">
 						Voltar
 					</Button>
 				</form>
