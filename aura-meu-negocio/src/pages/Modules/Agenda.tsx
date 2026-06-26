@@ -1,32 +1,41 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { format, startOfWeek, addDays, addWeeks, subWeeks } from "date-fns";
+import {
+	format,
+	startOfWeek,
+	addDays,
+	addWeeks,
+	subWeeks,
+	isSameDay,
+} from "date-fns";
 
 import { ptBR } from "date-fns/locale";
 
 import { DashboardLayout } from "../../components/DashboardLayout";
+import { NovoAgendamentoModal } from "./NovoAgendamentoModal";
 
-type Evento = {
+export type Evento = {
 	id: string;
 	nome: string;
 	servico: string;
 	profissional: string;
-	dia: number;
+	data: Date;
 	hora: number;
 	duracao: number;
 	color: string;
+	observacoes?: string;
 };
 
-export function Agenda() {
-	const [currentDate, setCurrentDate] = useState(new Date());
+function eventosIniciais(): Evento[] {
+	const inicioSemanaAtual = startOfWeek(new Date(), { weekStartsOn: 1 });
 
-	const eventos: Evento[] = [
+	return [
 		{
 			id: "1",
 			nome: "Ana Costa",
 			servico: "Corte feminino",
 			profissional: "Júlia",
-			dia: 0,
+			data: addDays(inicioSemanaAtual, 0),
 			hora: 9,
 			duracao: 1,
 			color: "bg-blue-100 border-blue-500",
@@ -36,7 +45,7 @@ export function Agenda() {
 			nome: "Pedro Lima",
 			servico: "Barba",
 			profissional: "Rafa",
-			dia: 2,
+			data: addDays(inicioSemanaAtual, 2),
 			hora: 10,
 			duracao: 1,
 			color: "bg-green-100 border-green-500",
@@ -46,12 +55,18 @@ export function Agenda() {
 			nome: "Lucas A.",
 			servico: "Avaliação",
 			profissional: "Você",
-			dia: 4,
+			data: addDays(inicioSemanaAtual, 4),
 			hora: 9,
 			duracao: 1,
 			color: "bg-cyan-100 border-cyan-500",
 		},
 	];
+}
+
+export function Agenda() {
+	const [currentDate, setCurrentDate] = useState(new Date());
+	const [eventos, setEventos] = useState<Evento[]>(eventosIniciais);
+	const [isModalOpen, setIsModalOpen] = useState(false);
 
 	// Semana começando na segunda
 	const startWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -97,7 +112,10 @@ export function Agenda() {
 							→
 						</button>
 
-						<button className="ml-0 sm:ml-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl transition text-sm">
+						<button
+							onClick={() => setIsModalOpen(true)}
+							className="ml-0 sm:ml-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-xl transition text-sm"
+						>
 							<Plus size={14} />
 
 							{/* Esconde texto no mobile */}
@@ -153,7 +171,7 @@ export function Agenda() {
 							</div>
 
 							{/* Dias */}
-							{dias.map((_, diaIndex) => (
+							{dias.map((dia, diaIndex) => (
 								<div
 									key={diaIndex}
 									className="relative border-l border-slate-200"
@@ -168,7 +186,7 @@ export function Agenda() {
 
 									{/* Eventos */}
 									{eventos
-										.filter((e) => e.dia === diaIndex)
+										.filter((evento) => isSameDay(evento.data, dia))
 										.map((evento) => (
 											<div
 												key={evento.id}
@@ -179,7 +197,7 @@ export function Agenda() {
 													rounded-xl p-2 text-xs shadow-sm
 												`}
 												style={{
-													top: (evento.hora - 8) * HOUR_HEIGHT,
+													top: evento.hora * HOUR_HEIGHT,
 													height: evento.duracao * HOUR_HEIGHT,
 												}}
 											>
@@ -198,6 +216,15 @@ export function Agenda() {
 					</div>
 				</div>
 			</div>
+
+			<NovoAgendamentoModal
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				onSave={(novoEvento) => {
+					setEventos((prev) => [...prev, novoEvento]);
+					setIsModalOpen(false);
+				}}
+			/>
 		</DashboardLayout>
 	);
 }

@@ -3,6 +3,17 @@
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
 ## 2026-06-25 — (ainda não commitado)
+**Implementação do formulário "Novo agendamento" (modal) na Agenda**
+- Criados os componentes de design system `Modal`, `Select` e `Textarea` (`src/ui/`), seguindo a mesma API visual do `Input` existente.
+- Corrigido bug pré-existente no `Button`: variante `secondary` tinha borda invisível (`border-[var(--white)]`) — corrigida para `border-[var(--border)]`.
+- Criado `NovoAgendamentoModal` (`src/pages/Modules/`), formulário de domínio com Cliente, Serviço, Profissional, Data, Horário e Observações, com validação obrigatória (exceto Observações), seguindo o padrão de validação manual já usado nas páginas de Auth.
+- Botão "Novo agendamento" da Agenda agora abre o modal; ao salvar, o evento é adicionado ao estado local da Agenda e renderizado no grid.
+- Modelo `Evento` migrado de dia-da-semana (`dia: number`, 0-6) para data absoluta (`data: Date`), corrigindo o comportamento de mocks que se repetiam indefinidamente em qualquer semana navegada.
+- Corrigido bug de posicionamento vertical dos eventos no grid (offset incorreto de `-8` horas).
+- Horário agora aceita minutos (posicionamento fracionário, ex.: 15:30 → 15.5h).
+- Validado visualmente via Playwright (headless): modal abre, validação de campos obrigatórios funciona, e o evento criado aparece corretamente posicionado na coluna/horário certos. Sem erros de console.
+
+## 2026-06-25 — `6279196` / `1072a5e`
 **Execução do 1º lote de fundações arquiteturais (Etapa 8, passos 1-9 do ARCHITECTURE_PLAN.md)**
 - Corrigidas dependências do frontend que só funcionavam via `node_modules` da raiz do repositório (`axios`, `tailwindcss`, `@tailwindcss/vite`).
 - Prettier configurado e código-fonte formatado.

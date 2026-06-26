@@ -36,13 +36,15 @@ Cada cliente no pipeline tem: nome, horário (ou rótulo relativo como "Ontem") 
 
 ## Módulo Agenda (`/agenda`)
 
-Visualização de **calendário semanal** (segunda a domingo, `weekStartsOn: 1`), também 100% mockada:
+Visualização de **calendário semanal** (segunda a domingo, `weekStartsOn: 1`). Dados ainda mockados em estado local (`useState`), sem backend — mas, desde 2026-06-25, com fluxo de criação funcional do lado do cliente:
 
-- Cada evento tem: cliente, serviço, profissional responsável, dia da semana (índice 0-6), hora de início, duração (em horas) e uma cor de identificação visual.
-- Navegação entre semanas (anterior/próxima) via botões; botão "Hoje" existe na UI mas **não tem handler implementado** (não volta para a semana atual ao ser clicado).
-- Botão "Novo agendamento" está presente na UI mas **sem nenhuma ação associada** (sem modal/formulário implementado).
-- A grade renderiza 24 linhas de hora (`0:00` a `23:00`), mas o posicionamento dos eventos é calculado com `(evento.hora - 8) * HOUR_HEIGHT` — ou seja, a fórmula assume implicitamente que a grade começa às 8h, o que não corresponde à grade renderizada (que começa às 0h). Isso é uma inconsistência técnica que pode causar posicionamento incorreto de eventos fora do intervalo 8h-23h. Ver Pendências/bug.
-- Não há regra de negócio explícita sobre horário de funcionamento, conflito de agendamentos (overlap), ou vínculo entre o profissional do evento e algum cadastro de equipe.
+- Cada evento tem: cliente, serviço, profissional responsável, **data absoluta** (`data: Date` — corrigido em 2026-06-25; antes era um índice fixo de dia da semana 0-6, o que fazia os mocks "repetirem" em toda semana navegada), hora de início (pode ter fração, ex. `15.5` = 15h30), duração (em horas), cor de identificação visual e observações opcionais.
+- Navegação entre semanas (anterior/próxima) via botões; botão "Hoje" existe na UI mas **ainda não tem handler implementado** (não volta para a semana atual ao ser clicado) — não tocado nesta rodada.
+- **Botão "Novo agendamento" agora abre um modal** (`NovoAgendamentoModal`) com os campos Cliente, Serviço, Profissional, Data, Horário e Observações. Validação obrigatória em todos exceto Observações. Ao salvar, o novo evento é adicionado ao estado local da Agenda e aparece imediatamente no grid, na coluna/horário corretos.
+  - Listas de Serviço (`Corte feminino`, `Corte masculino`, `Barba`, `Avaliação`, `Manicure`) e Profissional (`Júlia`, `Rafa`, `Você`) são mocks fixos no componente — quando existirem módulos de Serviços/Equipe no backend, devem vir de lá.
+  - Cor do evento é escolhida automaticamente por serviço (mapa fixo), com cor padrão (`roxo`) para serviços fora do mapa.
+- **Corrigido em 2026-06-25**: a fórmula de posicionamento dos eventos (`(evento.hora - 8) * HOUR_HEIGHT`) não correspondia à grade renderizada (que começa às 0h) — agora é `evento.hora * HOUR_HEIGHT`, alinhado corretamente com a grade de 24h.
+- Não há regra de negócio explícita sobre horário de funcionamento, conflito de agendamentos (overlap), ou vínculo formal entre o profissional do evento e algum cadastro de equipe (continuam sendo apenas strings livres).
 
 ## Navegação / menu (Sidebar)
 

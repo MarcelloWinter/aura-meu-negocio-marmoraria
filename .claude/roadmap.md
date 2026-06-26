@@ -14,13 +14,13 @@ Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota 
 ## Funcionalidades parcialmente implementadas (mock-only)
 
 - [ ] **Atendimento** — hoje é um Kanban estático com dados hardcoded. Para virar funcionalidade real, falta: endpoint(s) de backend para listar/mover atendimentos entre estágios, persistência em banco, e provavelmente drag-and-drop ou ação explícita de mudança de estágio na UI.
-- [ ] **Agenda** — hoje é um calendário estático com dados hardcoded. Falta: endpoints de CRUD de agendamentos, ação real para os botões "Hoje" e "Novo agendamento" (atualmente sem handler), e tratamento de conflito de horários.
+- [~] **Agenda** — em 2026-06-25, o botão "Novo agendamento" passou a abrir um formulário em modal (`NovoAgendamentoModal`) que adiciona o evento ao **estado local** da Agenda (sem backend ainda). Falta: endpoints reais de CRUD de agendamentos, persistência, tratamento de conflito de horários, e o botão "Hoje" continua sem handler.
 
 ## Segurança e infraestrutura — bloqueadores antes de expor mais módulos
 
 - [ ] Implementar o middleware de autenticação JWT no backend (`src/middlewares/auth.middleware.ts` está vazio) e aplicá-lo às futuras rotas de negócio.
 - [ ] Implementar rotas protegidas no frontend (guard que redireciona para `/` se não houver `@aura:token` válido).
-- [ ] Adicionar interceptor do Axios para enviar `Authorization: Bearer <token>` automaticamente e tratar respostas `401` (ex.: redirecionar para login).
+- [x] Adicionar interceptor do Axios para enviar `Authorization: Bearer <token>` automaticamente e tratar respostas `401`. *(2026-06-25 — limpa sessão local em 401; redirecionamento para login ainda depende das rotas protegidas, item acima)*
 - [ ] Decidir e implementar estratégia de expiração/renovação de sessão (hoje o JWT expira em 15 minutos sem refresh).
 - [ ] Revisar o fluxo de reset de senha para adicionar uma verificação server-side de que o código foi validado antes de aceitar `POST /auth/reset-password` (ver [business-rules.md](./business-rules.md)).
 
@@ -32,7 +32,7 @@ Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota 
 - [ ] Remover ou implementar `src/middlewares/auth.middleware.ts` (vazio) — fora do escopo do lote de 2026-06-25 (mudaria comportamento de autenticação).
 - [ ] Remover ou integrar `src/styles/theme.ts` e `src/styles/globals.css` (atualmente não usados).
 - [x] Esclarecer o propósito do `package.json`/`node_modules` na raiz do repositório. *(2026-06-25 — `axios`/`tailwindcss`/`@tailwindcss/vite` declarados localmente em `aura-meu-negocio/package.json`; `package.json`/`package-lock.json`/`node_modules` da raiz removidos)*
-- [ ] Corrigir a fórmula de posicionamento de eventos na Agenda (`(evento.hora - 8) * HOUR_HEIGHT`), que não corresponde à grade de 24h renderizada.
+- [x] Corrigir a fórmula de posicionamento de eventos na Agenda. *(2026-06-25 — era `(evento.hora - 8) * HOUR_HEIGHT`, agora `evento.hora * HOUR_HEIGHT`, alinhado à grade de 24h)*
 - [ ] Adicionar versionamento de schema do banco de dados (migrations).
 - [x] Tornar a `baseURL` do Axios configurável por ambiente. *(2026-06-25 — via `VITE_API_URL`)*
 

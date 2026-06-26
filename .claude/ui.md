@@ -42,12 +42,15 @@ Abordagem híbrida:
 |---|---|---|
 | `Card` | `children`, `className?` | Container com fundo branco, borda `slate-200`, `rounded-3xl`, sombra leve |
 | `PageHeader` | `title`, `description?` | Título `h1` + descrição opcional, com margem inferior |
+| `Modal` | `isOpen`, `onClose`, `title`, `children` | *(novo em 2026-06-25)* Overlay centrado com card branco, header com título + botão de fechar (X), fecha ao clicar fora ou no X. Usado pelo primeiro formulário em modal do projeto (`NovoAgendamentoModal`, em Agenda) — é o padrão a reaproveitar para os próximos modais (ex.: cadastro de Cliente, Produto, etc.) |
+| `Select` | `label`, `error?`, `options: {label, value}[]`, `placeholder?`, + atributos nativos de `<select>` | *(novo em 2026-06-25)* Mesma API visual do `Input` (label + `FormError`), com ícone de chevron sobreposto ao `<select>` nativo |
+| `Textarea` | `label`, `error?`, + atributos nativos de `<textarea>` | *(novo em 2026-06-25)* Mesma API visual do `Input`, para campos de texto longo (ex.: Observações) |
 
 ### `src/components/` — componentes compostos
 
 | Componente | Props | Descrição |
 |---|---|---|
-| `Button` | `children`, `variant?: "primary" \| "secondary" \| "ghost"`, + todos os atributos nativos de `<button>` | 3 variantes de estilo; altura fixa `h-11`, largura `w-full` |
+| `Button` | `children`, `variant?: "primary" \| "secondary" \| "ghost"`, + todos os atributos nativos de `<button>` | 3 variantes de estilo; altura fixa `h-11`, largura `w-full` (use `className="!w-auto"` para botões de largura automática, ex.: rodapé de modal). *Corrigido em 2026-06-25*: a variante `secondary` tinha `border-[var(--white)]` (borda invisível em fundo branco) — corrigida para `border-[var(--border)]` |
 | `Input` | `label`, `error?`, + atributos nativos de `<input>` | Label + input + `FormError` associado; borda fica vermelha se houver erro |
 | `FormError` | `message?` | Renderiza `null` se não houver mensagem; texto vermelho pequeno |
 | `Card` | `children`, `className?` | **Duplicata** de `src/ui/Card.tsx` (implementação idêntica) |
