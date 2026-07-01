@@ -36,15 +36,34 @@ Cada cliente no pipeline tem: nome, horário (ou rótulo relativo como "Ontem") 
 
 ## Módulo Agenda (`/agenda`)
 
-Visualização de **calendário semanal** (segunda a domingo, `weekStartsOn: 1`). Dados ainda mockados em estado local (`useState`), sem backend — mas, desde 2026-06-25, com fluxo de criação funcional do lado do cliente:
+Calendário com **três visualizações** (toggle segmentado no header): **Dia**, **Semana** (padrão) e **Mês**. Dados mockados em estado local (`useState`), sem backend ainda. Navegação (← Hoje →) adaptada por view (navega por dia, semana ou mês conforme a view ativa).
 
-- Cada evento tem: cliente, serviço, profissional responsável, **data absoluta** (`data: Date` — corrigido em 2026-06-25; antes era um índice fixo de dia da semana 0-6, o que fazia os mocks "repetirem" em toda semana navegada), hora de início (pode ter fração, ex. `15.5` = 15h30), duração (em horas), cor de identificação visual e observações opcionais.
-- Navegação entre semanas (anterior/próxima) via botões; botão "Hoje" existe na UI mas **ainda não tem handler implementado** (não volta para a semana atual ao ser clicado) — não tocado nesta rodada.
-- **Botão "Novo agendamento" agora abre um modal** (`NovoAgendamentoModal`) com os campos Cliente, Serviço, Profissional, Data, Horário e Observações. Validação obrigatória em todos exceto Observações. Ao salvar, o novo evento é adicionado ao estado local da Agenda e aparece imediatamente no grid, na coluna/horário corretos.
-  - Listas de Serviço (`Corte feminino`, `Corte masculino`, `Barba`, `Avaliação`, `Manicure`) e Profissional (`Júlia`, `Rafa`, `Você`) são mocks fixos no componente — quando existirem módulos de Serviços/Equipe no backend, devem vir de lá.
-  - Cor do evento é escolhida automaticamente por serviço (mapa fixo), com cor padrão (`roxo`) para serviços fora do mapa.
-- **Corrigido em 2026-06-25**: a fórmula de posicionamento dos eventos (`(evento.hora - 8) * HOUR_HEIGHT`) não correspondia à grade renderizada (que começa às 0h) — agora é `evento.hora * HOUR_HEIGHT`, alinhado corretamente com a grade de 24h.
-- Não há regra de negócio explícita sobre horário de funcionamento, conflito de agendamentos (overlap), ou vínculo formal entre o profissional do evento e algum cadastro de equipe (continuam sendo apenas strings livres).
+### Tipo `Evento`
+Cada evento tem: cliente, serviço, profissional responsável, data absoluta (`data: Date`), hora de início fracionária (ex. `15.5` = 15h30), duração em horas (calculada da diferença Fim − Início no formulário), cor por serviço e observações opcionais.
+
+### Formulário de novo agendamento (`NovoAgendamentoModal`)
+- Campos: Cliente, Serviço (com ponto colorido por tipo), Profissional (com avatar de iniciais), Data, Início, Fim, Observações.
+- **Fim é preenchido automaticamente** ao selecionar o serviço ou alterar o Início, com base em `DURACAO_POR_SERVICO` (Corte feminino: 60 min, Corte masculino: 45 min, Barba: 30 min, Avaliação: 30 min, Manicure: 60 min). O campo Fim permanece editável.
+- Validação: todos obrigatórios exceto Observações; `horarioFim > horarioInicio` validado com mensagem específica.
+- Listas de Serviço e Profissional são mocks fixos — quando houver módulo de Equipe/Serviços no backend, devem vir de lá.
+
+### Bloqueio de horários (`FechaHorarioModal`)
+- Acionado pelo botão **"Fechar horário"** (outline, ícone de cadeado) no header da Agenda.
+- Campos: Data (início da recorrência), Início, Fim, **Repete** (Não repete / Diariamente / Semanalmente / Quinzenalmente / Mensalmente).
+- Tipo `Bloqueio`: `{ id, data: Date, horaInicio: number, horaFim: number, recorrencia: Recorrencia }`.
+- Tipo `Recorrencia`: `"nenhuma" | "diaria" | "semanal" | "quinzenal" | "mensal"`.
+- Lógica `bloqueioAplicaNoDia(bloqueio, dia)` verifica a regra de recorrência sem imports adicionais (JS Date puro):
+  - `nenhuma` → só na data exata.
+  - `diaria` → todo dia a partir da data.
+  - `semanal` → mesmo `getDay()` a partir da data.
+  - `quinzenal` → `diffDias % 14 === 0` a partir da data.
+  - `mensal` → mesmo `getDate()` a partir da data.
+- **Visualização**: na view Dia/Semana, bloco cinza absoluto com listras diagonais (`repeating-linear-gradient`) e label "Fechado · [Recorrência]" quando há altura suficiente; renderizado em `z-0` (atrás dos eventos em `z-10`). Na view Mês, pill cinza com ícone `Lock` e o intervalo de horário.
+- Não há regra de conflito entre bloqueios e eventos (eventos existentes em horário bloqueado continuam aparecendo na frente).
+
+### Outras regras
+- Não há regra de negócio sobre horário de funcionamento ou conflito de agendamentos (overlap).
+- Profissionais continuam sendo strings livres, sem vínculo com cadastro de equipe.
 
 ## Navegação / menu (Sidebar)
 

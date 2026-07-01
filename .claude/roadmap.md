@@ -14,7 +14,7 @@ Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota 
 ## Funcionalidades parcialmente implementadas (mock-only)
 
 - [ ] **Atendimento** — hoje é um Kanban estático com dados hardcoded. Para virar funcionalidade real, falta: endpoint(s) de backend para listar/mover atendimentos entre estágios, persistência em banco, e provavelmente drag-and-drop ou ação explícita de mudança de estágio na UI.
-- [~] **Agenda** — em 2026-06-25, o botão "Novo agendamento" passou a abrir um formulário em modal (`NovoAgendamentoModal`) que adiciona o evento ao **estado local** da Agenda (sem backend ainda). Falta: endpoints reais de CRUD de agendamentos, persistência, tratamento de conflito de horários, e o botão "Hoje" continua sem handler.
+- [~] **Agenda** — em 2026-06-30, recebeu toggle de views (Dia/Semana/Mês), botão "Hoje" implementado, bloqueio de horários com recorrência (`FechaHorarioModal`), e formulário de agendamento aprimorado (Início/Fim com duração automática por serviço, selects ricos). Falta: endpoints reais de CRUD de agendamentos e bloqueios, persistência, tratamento de conflito de horários, e integração das listas de serviços/profissionais com o backend.
 
 ## Segurança e infraestrutura — bloqueadores antes de expor mais módulos
 

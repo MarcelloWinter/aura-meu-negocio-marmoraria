@@ -2,7 +2,15 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
-## 2026-06-25 — (ainda não commitado)
+## 2026-06-30 — (não commitado)
+**Melhorias no módulo Agenda: views, fechar horário e formulário aprimorado**
+
+- `Select.tsx` reescrito como dropdown customizado (substituiu `<select>` nativo): abre/fecha ao clicar, chevron animado, opção selecionada destacada, e nova prop `renderOption` para conteúdo rico nas opções.
+- `NovoAgendamentoModal`: campo de horário dividido em **Início** e **Fim**; Fim é calculado automaticamente via `DURACAO_POR_SERVICO` (em minutos) ao selecionar o serviço ou alterar o Início — mas ainda editável livremente. A `duracao` do evento agora reflete a diferença real entre Fim e Início. Layout corrigido: Data em linha própria (largura total), Início e Fim em `grid-cols-2`. Serviço agora exibe ponto colorido por tipo; Profissional exibe avatar com iniciais e cor por profissional.
+- `Agenda.tsx` — toggle de visualização (segmented control **Dia / Semana / Mês**), navegação (← →) e subtítulo do header adaptados por view; botão **Hoje** agora funciona. Exportados os tipos `Recorrencia` e `Bloqueio`. Helper `bloqueioAplicaNoDia` para verificar recorrência (diária, semanal, quinzenal, mensal) sem imports adicionais. Componente `BloqueioBlock` renderiza o bloco de horário fechado com padrão de listras diagonais (CSS `repeating-linear-gradient`) e ícone de cadeado; fica em `z-0` atrás dos eventos (`z-10`). Na view Mês, bloqueios aparecem como pills cinzas com ícone `Lock` e intervalo de horário. Botão **Fechar horário** (outline, ícone `Lock`) adicionado ao header.
+- `FechaHorarioModal.tsx` (novo): formulário com Data, Início, Fim e campo **Repete** (Não repete / Diariamente / Semanalmente / Quinzenalmente / Mensalmente). Exibe descrição contextual ao selecionar recorrência. Ao confirmar, adiciona o bloqueio ao estado local da Agenda — aparece imediatamente nas 3 views com a lógica de recorrência aplicada.
+
+## 2026-06-25 — `bdf4042`
 **Implementação do formulário "Novo agendamento" (modal) na Agenda**
 - Criados os componentes de design system `Modal`, `Select` e `Textarea` (`src/ui/`), seguindo a mesma API visual do `Input` existente.
 - Corrigido bug pré-existente no `Button`: variante `secondary` tinha borda invisível (`border-[var(--white)]`) — corrigida para `border-[var(--border)]`.

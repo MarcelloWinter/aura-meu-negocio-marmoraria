@@ -43,14 +43,14 @@ Abordagem híbrida:
 | `Card` | `children`, `className?` | Container com fundo branco, borda `slate-200`, `rounded-3xl`, sombra leve |
 | `PageHeader` | `title`, `description?` | Título `h1` + descrição opcional, com margem inferior |
 | `Modal` | `isOpen`, `onClose`, `title`, `children` | *(novo em 2026-06-25)* Overlay centrado com card branco, header com título + botão de fechar (X), fecha ao clicar fora ou no X. Usado pelo primeiro formulário em modal do projeto (`NovoAgendamentoModal`, em Agenda) — é o padrão a reaproveitar para os próximos modais (ex.: cadastro de Cliente, Produto, etc.) |
-| `Select` | `label`, `error?`, `options: {label, value}[]`, `placeholder?`, + atributos nativos de `<select>` | *(novo em 2026-06-25)* Mesma API visual do `Input` (label + `FormError`), com ícone de chevron sobreposto ao `<select>` nativo |
+| `Select` | `label`, `error?`, `options: {label, value}[]`, `placeholder?`, `value`, `onChange(value: string)`, `renderOption?` | *(criado em 2026-06-25, reescrito em 2026-06-30)* Dropdown **customizado** (não usa `<select>` nativo): botão trigger com chevron animado, lista de opções renderizada em `div`s com hover e item selecionado destacado, fecha ao clicar fora. Prop `renderOption(option)` permite conteúdo rico nas opções (ex.: pontos coloridos para serviços, avatares para profissionais) — o mesmo renderer é usado no trigger quando há valor selecionado. `onChange` recebe `string` diretamente (não `ChangeEvent`). |
 | `Textarea` | `label`, `error?`, + atributos nativos de `<textarea>` | *(novo em 2026-06-25)* Mesma API visual do `Input`, para campos de texto longo (ex.: Observações) |
 
 ### `src/components/` — componentes compostos
 
 | Componente | Props | Descrição |
 |---|---|---|
-| `Button` | `children`, `variant?: "primary" \| "secondary" \| "ghost"`, + todos os atributos nativos de `<button>` | 3 variantes de estilo; altura fixa `h-11`, largura `w-full` (use `className="!w-auto"` para botões de largura automática, ex.: rodapé de modal). *Corrigido em 2026-06-25*: a variante `secondary` tinha `border-[var(--white)]` (borda invisível em fundo branco) — corrigida para `border-[var(--border)]` |
+| `Button` | `children`, `variant?: "primary" \| "secondary" \| "ghost"`, + todos os atributos nativos de `<button>` | 3 variantes de estilo; altura fixa `h-11`, largura `w-full` (use `className="!w-auto"` para botões de largura automática, ex.: rodapé de modal). *Corrigido em 2026-06-25*: a variante `secondary` tinha `border-[var(--white)]` (borda invisível em fundo branco) — corrigida para `border-[var(--border)]`. Padrão para botões "outline" fora do sistema de variantes (ex.: "Fechar horário" na Agenda): classes Tailwind diretas no elemento `<button>` (`border border-slate-300 bg-white hover:bg-slate-50 text-slate-700`). |
 | `Input` | `label`, `error?`, + atributos nativos de `<input>` | Label + input + `FormError` associado; borda fica vermelha se houver erro |
 | `FormError` | `message?` | Renderiza `null` se não houver mensagem; texto vermelho pequeno |
 | `Card` | `children`, `className?` | **Duplicata** de `src/ui/Card.tsx` (implementação idêntica) |
