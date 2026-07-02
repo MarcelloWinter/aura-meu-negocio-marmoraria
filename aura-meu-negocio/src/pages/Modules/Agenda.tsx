@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Lock } from "lucide-react";
+import { useState, useRef, useEffect, type CSSProperties } from "react";
+import { Plus, Lock, UserRound, ChevronDown } from "lucide-react";
 import {
 	format,
 	startOfWeek,
@@ -55,6 +55,42 @@ type View = "dia" | "semana" | "mes";
 const HOUR_HEIGHT = 64;
 const HOURS = Array.from({ length: 24 }).map((_, i) => i);
 const DIAS_SEMANA_ABREV = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+const PROFISSIONAIS = ["Júlia", "Rafa", "Você"];
+
+const COR_AVATAR_PROFISSIONAL: Record<string, string> = {
+	Júlia: "bg-violet-100 text-violet-700",
+	Rafa: "bg-amber-100 text-amber-700",
+	Você: "bg-emerald-100 text-emerald-700",
+};
+
+function getInitiais(nome: string): string {
+	return nome
+		.split(" ")
+		.map((n) => n[0])
+		.join("")
+		.toUpperCase()
+		.slice(0, 2);
+}
+
+function AvatarProfissional({
+	nome,
+	small = false,
+}: {
+	nome: string;
+	small?: boolean;
+}) {
+	const cor = COR_AVATAR_PROFISSIONAL[nome] ?? "bg-slate-100 text-slate-600";
+	return (
+		<span
+			className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${cor} ${
+				small ? "h-5 w-5 text-[10px]" : "h-6 w-6 text-xs"
+			}`}
+		>
+			{getInitiais(nome)}
+		</span>
+	);
+}
 
 const LABEL_RECORRENCIA: Record<Recorrencia, string> = {
 	nenhuma: "",
@@ -136,18 +172,63 @@ function eventosIniciais(): Evento[] {
 
 // ─── Componentes de renderização ──────────────────────────────────────────────
 
-function EventoCard({ evento }: { evento: Evento }) {
+type EventLayout = {
+	evento: Evento;
+	col: number;
+	totalCols: number;
+};
+
+function calcularLayout(eventos: Evento[]): EventLayout[] {
+	if (eventos.length === 0) return [];
+
+	const sorted = [...eventos].sort((a, b) =>
+		a.hora !== b.hora ? a.hora - b.hora : b.duracao - a.duracao,
+	);
+
+	const colEndTimes: number[] = [];
+	const assignments: Array<{ evento: Evento; col: number }> = [];
+
+	for (const evento of sorted) {
+		const eventoEnd = evento.hora + evento.duracao;
+		let col = colEndTimes.findIndex((t) => t <= evento.hora);
+		if (col === -1) col = colEndTimes.length;
+		colEndTimes[col] = eventoEnd;
+		assignments.push({ evento, col });
+	}
+
+	return assignments.map(({ evento, col }) => {
+		const eventoEnd = evento.hora + evento.duracao;
+		const overlapping = assignments.filter(({ evento: other }) => {
+			const otherEnd = other.hora + other.duracao;
+			return other.hora < eventoEnd && otherEnd > evento.hora;
+		});
+		const totalCols = Math.max(...overlapping.map((o) => o.col)) + 1;
+		return { evento, col, totalCols };
+	});
+}
+
+function EventoCard({
+	evento,
+	layoutStyle,
+}: {
+	evento: Evento;
+	layoutStyle: CSSProperties;
+}) {
+	const altura = evento.duracao * HOUR_HEIGHT;
+
 	return (
 		<div
-			className={`absolute left-1 right-1 ${evento.color} z-10 rounded-xl border-l-4 p-2 text-xs shadow-sm`}
+			className={`absolute ${evento.color} z-10 overflow-hidden rounded-xl border-l-4 p-2 text-xs shadow-sm`}
 			style={{
 				top: evento.hora * HOUR_HEIGHT,
-				height: evento.duracao * HOUR_HEIGHT,
+				height: altura,
+				...layoutStyle,
 			}}
 		>
-			<p className="font-semibold text-slate-800">{evento.nome}</p>
-			<p className="text-slate-600">{evento.servico}</p>
-			<p className="text-slate-400">{evento.profissional}</p>
+			<p className="truncate font-semibold leading-tight text-slate-800">
+				{evento.nome}
+			</p>
+			<p className="truncate leading-tight text-slate-600">{evento.servico}</p>
 		</div>
 	);
 }
@@ -218,12 +299,19 @@ function DayColumn({
 				<BloqueioBlock key={b.id} bloqueio={b} />
 			))}
 
-			{/* Eventos à frente dos bloqueios */}
-			{eventos
-				.filter((e) => isSameDay(e.data, dia))
-				.map((evento) => (
-					<EventoCard key={evento.id} evento={evento} />
-				))}
+			{/* Eventos à frente dos bloqueios — com layout de colunas para sobreposições */}
+			{calcularLayout(eventos.filter((e) => isSameDay(e.data, dia))).map(
+				({ evento, col, totalCols }) => (
+					<EventoCard
+						key={evento.id}
+						evento={evento}
+						layoutStyle={{
+							left: `calc(${(col / totalCols) * 100}% + 4px)`,
+							width: `calc(${(1 / totalCols) * 100}% - 8px)`,
+						}}
+					/>
+				),
+			)}
 		</div>
 	);
 }
@@ -254,8 +342,8 @@ function AgendaDiaView({
 	bloqueios: Bloqueio[];
 }) {
 	return (
-		<div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-			<div className="grid grid-cols-[50px_1fr] border-b border-slate-200">
+		<div className="rounded-2xl border border-slate-200 bg-white">
+			<div className="sticky top-0 z-20 grid grid-cols-[50px_1fr] rounded-t-2xl border-b border-slate-200 bg-white">
 				<div />
 				<DayHeader dia={date} />
 			</div>
@@ -280,8 +368,8 @@ function AgendaSemanaView({
 	const dias = Array.from({ length: 7 }).map((_, i) => addDays(startWeek, i));
 
 	return (
-		<div className="min-w-[900px] bg-white rounded-2xl border border-slate-200 overflow-hidden">
-			<div className="grid grid-cols-8 border-b border-slate-200">
+		<div className="min-w-[900px] rounded-2xl border border-slate-200 bg-white">
+			<div className="sticky top-0 z-20 grid grid-cols-8 rounded-t-2xl border-b border-slate-200 bg-white">
 				<div className="w-[50px]" />
 				{dias.map((dia, i) => (
 					<DayHeader key={i} dia={dia} />
@@ -322,8 +410,8 @@ function AgendaMesView({
 	const today = new Date();
 
 	return (
-		<div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-			<div className="grid grid-cols-7 border-b border-slate-200">
+		<div className="rounded-2xl border border-slate-200 bg-white">
+			<div className="sticky top-0 z-20 grid grid-cols-7 rounded-t-2xl border-b border-slate-200 bg-white">
 				{DIAS_SEMANA_ABREV.map((dia) => (
 					<div
 						key={dia}
@@ -423,6 +511,92 @@ function AgendaMesView({
 	);
 }
 
+// ─── Filtro de profissional ───────────────────────────────────────────────────
+
+function FiltroProfissional({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (v: string) => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		function handler(e: MouseEvent) {
+			if (ref.current && !ref.current.contains(e.target as Node))
+				setOpen(false);
+		}
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, []);
+
+	return (
+		<div ref={ref} className="relative">
+			<button
+				type="button"
+				onClick={() => setOpen((o) => !o)}
+				className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+			>
+				{value ? (
+					<AvatarProfissional nome={value} small />
+				) : (
+					<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100">
+						<UserRound size={11} className="text-slate-500" />
+					</span>
+				)}
+				<span>{value || "Todos"}</span>
+				<ChevronDown
+					size={13}
+					className={`shrink-0 text-slate-400 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+				/>
+			</button>
+
+			{open && (
+				<div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-xl border border-[var(--border)] bg-white py-1 shadow-lg">
+					<button
+						type="button"
+						onClick={() => {
+							onChange("");
+							setOpen(false);
+						}}
+						className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${
+							!value
+								? "bg-blue-50 font-medium text-[var(--primary)]"
+								: "text-[var(--text)]"
+						}`}
+					>
+						<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100">
+							<UserRound size={12} className="text-slate-500" />
+						</span>
+						Todos
+					</button>
+
+					{PROFISSIONAIS.map((p) => (
+						<button
+							key={p}
+							type="button"
+							onClick={() => {
+								onChange(p);
+								setOpen(false);
+							}}
+							className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${
+								value === p
+									? "bg-blue-50 font-medium text-[var(--primary)]"
+									: "text-[var(--text)]"
+							}`}
+						>
+							<AvatarProfissional nome={p} />
+							{p}
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 const VIEW_LABELS: Record<View, string> = {
@@ -436,8 +610,13 @@ export function Agenda() {
 	const [view, setView] = useState<View>("semana");
 	const [eventos, setEventos] = useState<Evento[]>(eventosIniciais);
 	const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
+	const [filtroProfissional, setFiltroProfissional] = useState("");
 	const [isAgendamentoOpen, setIsAgendamentoOpen] = useState(false);
 	const [isBloqueioOpen, setIsBloqueioOpen] = useState(false);
+
+	const eventosFiltrados = filtroProfissional
+		? eventos.filter((e) => e.profissional === filtroProfissional)
+		: eventos;
 
 	function navigatePrev() {
 		if (view === "dia") setCurrentDate((d) => subDays(d, 1));
@@ -512,6 +691,12 @@ export function Agenda() {
 							))}
 						</div>
 
+						{/* Filtro por profissional */}
+						<FiltroProfissional
+							value={filtroProfissional}
+							onChange={setFiltroProfissional}
+						/>
+
 						{/* Fechar horário */}
 						<button
 							onClick={() => setIsBloqueioOpen(true)}
@@ -533,25 +718,25 @@ export function Agenda() {
 				</div>
 
 				{/* CONTEÚDO */}
-				<div className="flex-1 overflow-auto p-4 sm:p-6">
+				<div className="flex-1 overflow-auto px-4 pb-4 sm:px-6 sm:pb-6">
 					{view === "dia" && (
 						<AgendaDiaView
 							date={currentDate}
-							eventos={eventos}
+							eventos={eventosFiltrados}
 							bloqueios={bloqueios}
 						/>
 					)}
 					{view === "semana" && (
 						<AgendaSemanaView
 							date={currentDate}
-							eventos={eventos}
+							eventos={eventosFiltrados}
 							bloqueios={bloqueios}
 						/>
 					)}
 					{view === "mes" && (
 						<AgendaMesView
 							date={currentDate}
-							eventos={eventos}
+							eventos={eventosFiltrados}
 							bloqueios={bloqueios}
 						/>
 					)}

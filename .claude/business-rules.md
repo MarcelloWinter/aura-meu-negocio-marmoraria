@@ -61,8 +61,14 @@ Cada evento tem: cliente, serviço, profissional responsável, data absoluta (`d
 - **Visualização**: na view Dia/Semana, bloco cinza absoluto com listras diagonais (`repeating-linear-gradient`) e label "Fechado · [Recorrência]" quando há altura suficiente; renderizado em `z-0` (atrás dos eventos em `z-10`). Na view Mês, pill cinza com ícone `Lock` e o intervalo de horário.
 - Não há regra de conflito entre bloqueios e eventos (eventos existentes em horário bloqueado continuam aparecendo na frente).
 
+### Layout de eventos sobrepostos (views Dia e Semana)
+Quando dois ou mais eventos se sobrepõem no mesmo intervalo de tempo em uma coluna de dia, o grid aplica automaticamente um layout de colunas:
+- Eventos são distribuídos horizontalmente em colunas de igual largura (ex.: 2 eventos simultâneos → cada um ocupa 50% da coluna).
+- O algoritmo guloso (`calcularLayout`) garante que eventos que não se sobrepõem entre si possam compartilhar a mesma coluna horizontal (ex.: A das 9h–10h e C das 10h–11h ficam na mesma coluna, mesmo que ambos se sobreponham a B das 9h–11h).
+- Apenas as views **Dia** e **Semana** usam este layout. A view **Mês** continua exibindo pills independentes (não há colisão vertical no grid mensal).
+
 ### Outras regras
-- Não há regra de negócio sobre horário de funcionamento ou conflito de agendamentos (overlap).
+- Não há regra de negócio sobre horário de funcionamento do negócio.
 - Profissionais continuam sendo strings livres, sem vínculo com cadastro de equipe.
 
 ## Navegação / menu (Sidebar)

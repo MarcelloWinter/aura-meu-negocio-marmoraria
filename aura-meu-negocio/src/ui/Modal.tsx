@@ -18,9 +18,11 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 		>
 			<div
 				onClick={(e) => e.stopPropagation()}
-				className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg"
+				className="flex w-full max-w-md flex-col rounded-2xl bg-white shadow-lg"
+				style={{ maxHeight: "90vh" }}
 			>
-				<div className="mb-6 flex items-center justify-between">
+				{/* Header fixo — nunca some com scroll */}
+				<div className="flex shrink-0 items-center justify-between px-6 pb-4 pt-6">
 					<h2 className="text-lg font-semibold text-[var(--text)]">{title}</h2>
 
 					<button
@@ -32,7 +34,8 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 					</button>
 				</div>
 
-				{children}
+				{/* Conteúdo com scroll quando o formulário crescer */}
+				<div className="overflow-y-auto px-6 pb-6">{children}</div>
 			</div>
 		</div>
 	);

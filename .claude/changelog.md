@@ -2,6 +2,14 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
+## 2026-07-02 — (não commitado)
+**Agenda: layout de colunas para eventos sobrepostos (views Dia e Semana)**
+
+- `Agenda.tsx` — adicionada função `calcularLayout(eventos)` que implementa um algoritmo guloso de escalonamento de intervalos: ordena os eventos por hora de início (mais longos primeiro como desempate), atribui cada evento à primeira coluna em que ele não sobrepõe o anterior, e calcula `totalCols` como o máximo de colunas usadas por qualquer evento do grupo de sobreposição +1. O resultado é um array `EventLayout[]` com `col` e `totalCols` por evento.
+- `EventoCard` recebe nova prop obrigatória `layoutStyle: CSSProperties` (substitui as classes fixas `left-1 right-1`). O posicionamento horizontal agora é dinâmico: `left: calc(col/totalCols * 100% + 4px)` e `width: calc(1/totalCols * 100% - 8px)`. Eventos sem sobreposição continuam ocupando a largura completa da coluna (equivalente ao comportamento anterior).
+- `DayColumn` passa os eventos do dia filtrados por `isSameDay` para `calcularLayout` e repassa o `layoutStyle` calculado para cada `EventoCard`. View de Mês não é afetada (usa renderização própria de pills).
+- Corrigido: dois agendamentos no mesmo horário (ex.: dois eventos às 09:00) antes se sobrepunham completamente no grid semana/dia — agora aparecem lado a lado, cada um com metade da largura da coluna.
+
 ## 2026-06-30 — (não commitado)
 **Melhorias no módulo Agenda: views, fechar horário e formulário aprimorado**
 
