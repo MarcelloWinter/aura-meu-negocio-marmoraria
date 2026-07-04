@@ -71,9 +71,37 @@ Quando dois ou mais eventos se sobrepõem no mesmo intervalo de tempo em uma col
 - Não há regra de negócio sobre horário de funcionamento do negócio.
 - Profissionais continuam sendo strings livres, sem vínculo com cadastro de equipe.
 
+## Módulo Financeiro (`/financeiro`)
+
+Painel financeiro mensal, **100% mockado** (estado local, sem backend). Dados iniciais representam julho de 2026 com R$ 18.420 em receitas e R$ 7.150 em despesas (saldo R$ 11.270).
+
+### Modelo de dados
+
+Tipo único `Transacao` com campos: `id`, `descricao`, `tipo: "receita" | "despesa"`, `valor: number`, `vencimento: "DD/MM"`, `status: "em_dia" | "atrasado" | "pago"`.
+
+### Cards de resumo
+
+- **Entradas**: soma de todas as transações do tipo `"receita"` no estado. Exibe variação percentual vs. mês anterior (hardcoded "+12%" nos mocks iniciais).
+- **Saídas**: soma de todas as transações do tipo `"despesa"`. Variação "-4%" nos mocks iniciais.
+- **Saldo**: `totalEntradas - totalSaidas`. Card com fundo azul sólido.
+- Os três totais são derivados reativamente do array `transacoes[]` — atualizam ao adicionar novas receitas/despesas.
+
+### Gráfico de fluxo de caixa
+
+SVG puro responsivo com curva bezier suave e gradiente de preenchimento. Dados diários pré-calculados simulam o saldo acumulado ao longo do mês (não reflete dinamicamente as novas transações adicionadas pelo usuário — permanece como dado de referência inicial até integração real com backend).
+
+### Listas de contas
+
+- **Contas a receber**: `transacoes.filter(t => t.tipo === "receita" && t.status !== "pago")`. Exibe badge de status (`Em dia` / `Atrasado`).
+- **Contas a pagar**: `transacoes.filter(t => t.tipo === "despesa" && t.status !== "pago")`. Sem badge (apenas data e valor).
+
+### Formulários de nova transação
+
+Botões "+ Nova receita" e "+ Nova despesa" no header abrem o mesmo componente `NovaTransacaoModal` com `tipo` diferente. Campos: Descrição, Valor (numérico) e Vencimento (date picker). Validação obrigatória em todos os campos. Ao salvar, a transação entra no array com `status: "em_dia"`, o modal fecha e os totais dos cards atualizam imediatamente.
+
 ## Navegação / menu (Sidebar)
 
-O menu lateral (`Sidebar.tsx`) lista 6 seções: Dashboard, Atendimento, Agenda, Financeiro, Equipe, Configurações — mas apenas **Atendimento** e **Agenda** têm página/rota implementada hoje. As demais (Dashboard, Financeiro, Equipe, Configurações) aparecem no menu mas não têm rota correspondente em `App.tsx` (ver [roadmap.md](./roadmap.md)).
+O menu lateral (`Sidebar.tsx`) lista 6 seções: Dashboard, Atendimento, Agenda, Financeiro, Equipe, Configurações. Rotas implementadas: **Atendimento** (`/atendimento`), **Agenda** (`/agenda`) e **Financeiro** (`/financeiro`). As demais (Dashboard, Equipe, Configurações) aparecem no menu mas não têm rota correspondente em `App.tsx` (ver [roadmap.md](./roadmap.md)).
 
 ## Pendências
 

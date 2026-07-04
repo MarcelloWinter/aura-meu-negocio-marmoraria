@@ -7,7 +7,7 @@ import { Textarea } from "../../ui/Textarea";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
 
-import type { Evento } from "./Agenda";
+import type { Evento, Recorrencia } from "./Agenda";
 
 const SERVICOS: SelectOption[] = [
 	{ label: "Corte feminino", value: "Corte feminino" },
@@ -57,6 +57,22 @@ const CORES_POR_SERVICO: Record<string, string> = {
 	Manicure: "bg-pink-100 border-pink-500",
 };
 const COR_PADRAO = "bg-purple-100 border-purple-500";
+
+const OPCOES_RECORRENCIA: SelectOption[] = [
+	{ label: "Não repete", value: "nenhuma" },
+	{ label: "Diariamente", value: "diaria" },
+	{ label: "Semanalmente", value: "semanal" },
+	{ label: "Quinzenalmente", value: "quinzenal" },
+	{ label: "Mensalmente", value: "mensal" },
+];
+
+const DESCRICAO_RECORRENCIA: Record<Recorrencia, string> = {
+	nenhuma: "",
+	diaria: "O agendamento se repete todos os dias a partir desta data.",
+	semanal: "O agendamento se repete toda semana neste mesmo dia.",
+	quinzenal: "O agendamento se repete a cada duas semanas.",
+	mensal: "O agendamento se repete todo mês neste mesmo dia.",
+};
 
 function getInitials(name: string) {
 	return name
@@ -131,6 +147,7 @@ export function NovoAgendamentoModal({
 	const [data, setData] = useState("");
 	const [horarioInicio, setHorarioInicio] = useState("");
 	const [horarioFim, setHorarioFim] = useState("");
+	const [recorrencia, setRecorrencia] = useState<Recorrencia>("nenhuma");
 	const [observacoes, setObservacoes] = useState("");
 
 	const [errors, setErrors] = useState(ERROS_VAZIOS);
@@ -158,6 +175,7 @@ export function NovoAgendamentoModal({
 		setData("");
 		setHorarioInicio("");
 		setHorarioFim("");
+		setRecorrencia("nenhuma");
 		setObservacoes("");
 		setErrors(ERROS_VAZIOS);
 	}
@@ -208,6 +226,7 @@ export function NovoAgendamentoModal({
 			duracao: duracaoMinutos / 60,
 			color: CORES_POR_SERVICO[servico] ?? COR_PADRAO,
 			observacoes: observacoes.trim() || undefined,
+			recorrencia,
 		});
 
 		limparFormulario();
@@ -271,6 +290,20 @@ export function NovoAgendamentoModal({
 						onChange={(e) => setHorarioFim(e.target.value)}
 						error={errors.horarioFim}
 					/>
+				</div>
+
+				<div className="flex flex-col gap-2">
+					<Select
+						label="Repete"
+						value={recorrencia}
+						onChange={(v) => setRecorrencia(v as Recorrencia)}
+						options={OPCOES_RECORRENCIA}
+					/>
+					{recorrencia !== "nenhuma" && (
+						<p className="text-xs text-slate-500">
+							{DESCRICAO_RECORRENCIA[recorrencia]}
+						</p>
+					)}
 				</div>
 
 				<Textarea

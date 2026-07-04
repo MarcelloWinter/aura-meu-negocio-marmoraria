@@ -2,13 +2,37 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
-## 2026-07-02 — (não commitado)
-**Agenda: layout de colunas para eventos sobrepostos (views Dia e Semana)**
+## 2026-07-04 — (não commitado)
+**Módulo Financeiro (`/financeiro`)**
 
+- Criado `src/pages/Modules/Financeiro.tsx` — módulo completo baseado em mockup:
+  - **Cards de resumo** (grid 3 colunas): Entradas (verde, `TrendingUp`), Saídas (vermelho, `TrendingDown`) e Saldo (card azul sólido, `Wallet`). Totais calculados reativamente a partir do estado `transacoes[]` — ao adicionar uma nova receita ou despesa via modal, os valores atualizam imediatamente.
+  - **Gráfico "Fluxo de caixa"**: SVG puro responsivo com curva bezier suave, área preenchida com gradiente azul e eixo X com rótulos de dias posicionados via CSS (`position: absolute`, `left: ${pct}%`). Dados iniciais simulam o saldo diário de julho de 2026 com entradas e saídas distribuídas ao longo do mês.
+  - **Contas a receber** e **Contas a pagar** em grid de 2 colunas: filtram automaticamente `transacoes[]` pelo tipo e status (`status !== "pago"`). Contas a receber exibem badge colorido (`Em dia` / `Atrasado`). Divisores `divide-y` entre itens.
+  - **Modais "Nova receita" / "Nova despesa"**: reutilizam o componente `Modal` existente. Campos: Descrição, Valor e Vencimento — todos obrigatórios com validação inline. Vencimento convertido de ISO (`YYYY-MM-DD`) para `DD/MM` ao persistir.
+  - Dados mock iniciais totalizam exatamente R$ 18.420 em receitas e R$ 7.150 em despesas (saldo R$ 11.270), espelhando o mockup de referência.
+- Adicionada rota `/financeiro` em `App.tsx` e import de `Financeiro`.
+
+## 2026-07-02 — (não commitado)
+**Agenda: recorrência em eventos, detalhe de agendamento e correção de layout**
+
+### Layout de colunas para eventos sobrepostos (views Dia e Semana)
 - `Agenda.tsx` — adicionada função `calcularLayout(eventos)` que implementa um algoritmo guloso de escalonamento de intervalos: ordena os eventos por hora de início (mais longos primeiro como desempate), atribui cada evento à primeira coluna em que ele não sobrepõe o anterior, e calcula `totalCols` como o máximo de colunas usadas por qualquer evento do grupo de sobreposição +1. O resultado é um array `EventLayout[]` com `col` e `totalCols` por evento.
 - `EventoCard` recebe nova prop obrigatória `layoutStyle: CSSProperties` (substitui as classes fixas `left-1 right-1`). O posicionamento horizontal agora é dinâmico: `left: calc(col/totalCols * 100% + 4px)` e `width: calc(1/totalCols * 100% - 8px)`. Eventos sem sobreposição continuam ocupando a largura completa da coluna (equivalente ao comportamento anterior).
 - `DayColumn` passa os eventos do dia filtrados por `isSameDay` para `calcularLayout` e repassa o `layoutStyle` calculado para cada `EventoCard`. View de Mês não é afetada (usa renderização própria de pills).
-- Corrigido: dois agendamentos no mesmo horário (ex.: dois eventos às 09:00) antes se sobrepunham completamente no grid semana/dia — agora aparecem lado a lado, cada um com metade da largura da coluna.
+
+### Recorrência em eventos (`NovoAgendamentoModal`)
+- Tipo `Recorrencia` (`"nenhuma" | "diaria" | "semanal" | "quinzenal" | "mensal"`) exportado de `Agenda.tsx` e adicionado como campo opcional `recorrencia?` no tipo `Evento`.
+- Unificado helper `aplicaNoDia(data, recorrencia, dia)` que substitui a duplicação entre `bloqueioAplicaNoDia` e a nova `eventoAplicaNoDia` — ambas o chamam.
+- `NovoAgendamentoModal` recebe campo **Repete** (Select com as 5 opções) e exibe descrição contextual abaixo quando a recorrência é diferente de "nenhuma". `limparFormulario` reseta recorrência para "nenhuma".
+
+### Detalhe e cancelamento de agendamento (`DetalheEventoModal`)
+- Adicionado componente `DetalheEventoModal` em `Agenda.tsx`: abre ao clicar em qualquer card de evento nas views Dia/Semana/Mês. Exibe cabeçalho colorido (cor do serviço), dados completos (cliente, serviço, profissional, data/hora, recorrência, observações) com ícones Lucide, e rodapé com ações.
+- **Cancelamento com confirmação em dois passos**: primeiro clique em "Cancelar agendamento" troca o rodapé para um estado de confirmação com aviso; "Sim, cancelar" remove o evento do array; "Voltar" retorna ao estado normal. O estado `confirmando` é resetado via `useEffect([evento])` ao trocar de evento.
+- Prop `onEventoClick: (evento: Evento) => void` propagada por `DayColumn` → `AgendaDiaView` / `AgendaSemanaView` / `AgendaMesView` → `Agenda`.
+
+### Correção de texto cortado em cards pequenos
+- `EventoCard`: altura mínima de 28 px via `Math.max(altura, 28)` garante que cards de 15 min sempre exibam ao menos o nome do cliente. Cards com `alturaDisplay < 40` usam padding compacto (`px-2 py-1`) e ocultam a linha do serviço; demais usam `p-2` e exibem ambas as linhas. `overflow-hidden` mantido para não vazar texto além do card.
 
 ## 2026-06-30 — (não commitado)
 **Melhorias no módulo Agenda: views, fechar horário e formulário aprimorado**

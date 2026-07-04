@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect, type CSSProperties } from "react";
-import { Plus, Lock, UserRound, ChevronDown } from "lucide-react";
+import {
+	Plus,
+	Lock,
+	UserRound,
+	ChevronDown,
+	CalendarDays,
+	Clock,
+	RefreshCw,
+	FileText,
+	X,
+} from "lucide-react";
 import {
 	format,
 	startOfWeek,
@@ -31,6 +41,7 @@ export type Evento = {
 	duracao: number;
 	color: string;
 	observacoes?: string;
+	recorrencia?: Recorrencia;
 };
 
 export type Recorrencia =
@@ -106,31 +117,42 @@ function formatHora(hora: number): string {
 	return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-function bloqueioAplicaNoDia(bloqueio: Bloqueio, dia: Date): boolean {
-	const bd = bloqueio.data;
+function aplicaNoDia(data: Date, recorrencia: Recorrencia | undefined, dia: Date): boolean {
 	const diaMs = new Date(
 		dia.getFullYear(),
 		dia.getMonth(),
 		dia.getDate(),
 	).getTime();
-	const bdMs = new Date(bd.getFullYear(), bd.getMonth(), bd.getDate()).getTime();
+	const bdMs = new Date(
+		data.getFullYear(),
+		data.getMonth(),
+		data.getDate(),
+	).getTime();
 
 	if (diaMs < bdMs) return false;
 
-	switch (bloqueio.recorrencia) {
+	switch (recorrencia ?? "nenhuma") {
 		case "nenhuma":
 			return diaMs === bdMs;
 		case "diaria":
 			return true;
 		case "semanal":
-			return dia.getDay() === bd.getDay();
+			return dia.getDay() === data.getDay();
 		case "quinzenal": {
 			const diffDias = Math.round((diaMs - bdMs) / 86_400_000);
 			return diffDias % 14 === 0;
 		}
 		case "mensal":
-			return dia.getDate() === bd.getDate();
+			return dia.getDate() === data.getDate();
 	}
+}
+
+function eventoAplicaNoDia(evento: Evento, dia: Date): boolean {
+	return aplicaNoDia(evento.data, evento.recorrencia, dia);
+}
+
+function bloqueioAplicaNoDia(bloqueio: Bloqueio, dia: Date): boolean {
+	return aplicaNoDia(bloqueio.data, bloqueio.recorrencia, dia);
 }
 
 function eventosIniciais(): Evento[] {
@@ -210,25 +232,36 @@ function calcularLayout(eventos: Evento[]): EventLayout[] {
 function EventoCard({
 	evento,
 	layoutStyle,
+	onClick,
 }: {
 	evento: Evento;
 	layoutStyle: CSSProperties;
+	onClick: () => void;
 }) {
 	const altura = evento.duracao * HOUR_HEIGHT;
+	// Altura mínima para que o nome sempre caiba sem corte (texto ~15px + py-1 = 4px × 2)
+	const alturaDisplay = Math.max(altura, 28);
+	const compact = alturaDisplay < 40;
 
 	return (
 		<div
-			className={`absolute ${evento.color} z-10 overflow-hidden rounded-xl border-l-4 p-2 text-xs shadow-sm`}
+			role="button"
+			tabIndex={0}
+			onClick={onClick}
+			onKeyDown={(e) => e.key === "Enter" && onClick()}
+			className={`absolute ${evento.color} z-10 cursor-pointer overflow-hidden rounded-xl border-l-4 text-xs shadow-sm transition-opacity hover:opacity-80 ${compact ? "px-2 py-1" : "p-2"}`}
 			style={{
 				top: evento.hora * HOUR_HEIGHT,
-				height: altura,
+				height: alturaDisplay,
 				...layoutStyle,
 			}}
 		>
 			<p className="truncate font-semibold leading-tight text-slate-800">
 				{evento.nome}
 			</p>
-			<p className="truncate leading-tight text-slate-600">{evento.servico}</p>
+			{!compact && (
+				<p className="truncate leading-tight text-slate-600">{evento.servico}</p>
+			)}
 		</div>
 	);
 }
@@ -278,10 +311,12 @@ function DayColumn({
 	dia,
 	eventos,
 	bloqueios,
+	onEventoClick,
 }: {
 	dia: Date;
 	eventos: Evento[];
 	bloqueios: Bloqueio[];
+	onEventoClick: (evento: Evento) => void;
 }) {
 	const bloqueiosDoDia = bloqueios.filter((b) => bloqueioAplicaNoDia(b, dia));
 
@@ -300,7 +335,7 @@ function DayColumn({
 			))}
 
 			{/* Eventos à frente dos bloqueios — com layout de colunas para sobreposições */}
-			{calcularLayout(eventos.filter((e) => isSameDay(e.data, dia))).map(
+			{calcularLayout(eventos.filter((e) => eventoAplicaNoDia(e, dia))).map(
 				({ evento, col, totalCols }) => (
 					<EventoCard
 						key={evento.id}
@@ -309,6 +344,7 @@ function DayColumn({
 							left: `calc(${(col / totalCols) * 100}% + 4px)`,
 							width: `calc(${(1 / totalCols) * 100}% - 8px)`,
 						}}
+						onClick={() => onEventoClick(evento)}
 					/>
 				),
 			)}
@@ -336,10 +372,12 @@ function AgendaDiaView({
 	date,
 	eventos,
 	bloqueios,
+	onEventoClick,
 }: {
 	date: Date;
 	eventos: Evento[];
 	bloqueios: Bloqueio[];
+	onEventoClick: (evento: Evento) => void;
 }) {
 	return (
 		<div className="rounded-2xl border border-slate-200 bg-white">
@@ -349,7 +387,7 @@ function AgendaDiaView({
 			</div>
 			<div className="grid grid-cols-[50px_1fr]">
 				<HourColumn />
-				<DayColumn dia={date} eventos={eventos} bloqueios={bloqueios} />
+				<DayColumn dia={date} eventos={eventos} bloqueios={bloqueios} onEventoClick={onEventoClick} />
 			</div>
 		</div>
 	);
@@ -359,10 +397,12 @@ function AgendaSemanaView({
 	date,
 	eventos,
 	bloqueios,
+	onEventoClick,
 }: {
 	date: Date;
 	eventos: Evento[];
 	bloqueios: Bloqueio[];
+	onEventoClick: (evento: Evento) => void;
 }) {
 	const startWeek = startOfWeek(date, { weekStartsOn: 1 });
 	const dias = Array.from({ length: 7 }).map((_, i) => addDays(startWeek, i));
@@ -380,7 +420,7 @@ function AgendaSemanaView({
 					<HourColumn />
 				</div>
 				{dias.map((dia, i) => (
-					<DayColumn key={i} dia={dia} eventos={eventos} bloqueios={bloqueios} />
+					<DayColumn key={i} dia={dia} eventos={eventos} bloqueios={bloqueios} onEventoClick={onEventoClick} />
 				))}
 			</div>
 		</div>
@@ -391,10 +431,12 @@ function AgendaMesView({
 	date,
 	eventos,
 	bloqueios,
+	onEventoClick,
 }: {
 	date: Date;
 	eventos: Evento[];
 	bloqueios: Bloqueio[];
+	onEventoClick: (evento: Evento) => void;
 }) {
 	const monthStart = startOfMonth(date);
 	const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -430,7 +472,7 @@ function AgendaMesView({
 						const isLastWeek = si === visibleWeeks.length - 1;
 
 						const eventosDoDia = eventos
-							.filter((e) => isSameDay(e.data, dia))
+							.filter((e) => eventoAplicaNoDia(e, dia))
 							.sort((a, b) => a.hora - b.hora);
 
 						const bloqueiosDoDia = bloqueios.filter((b) =>
@@ -483,9 +525,11 @@ function AgendaMesView({
 									{eventosDoDia
 										.slice(0, Math.max(0, maxVisiveis - bloqueiosDoDia.length))
 										.map((evento) => (
-											<div
+											<button
 												key={evento.id}
-												className={`flex items-center gap-1 rounded border-l-2 px-1.5 py-0.5 text-xs ${evento.color}`}
+												type="button"
+												onClick={() => onEventoClick(evento)}
+												className={`flex w-full cursor-pointer items-center gap-1 rounded border-l-2 px-1.5 py-0.5 text-left text-xs transition-opacity hover:opacity-75 ${evento.color}`}
 											>
 												<span className="shrink-0 text-slate-500">
 													{formatHora(evento.hora)}
@@ -493,7 +537,7 @@ function AgendaMesView({
 												<span className="truncate font-medium text-slate-700">
 													{evento.nome}
 												</span>
-											</div>
+											</button>
 										))}
 
 									{totalItens > maxVisiveis && (
@@ -507,6 +551,176 @@ function AgendaMesView({
 					})}
 				</div>
 			))}
+		</div>
+	);
+}
+
+// ─── Modal de detalhes do evento ─────────────────────────────────────────────
+
+function DetalheEventoModal({
+	evento,
+	onClose,
+	onCancelar,
+}: {
+	evento: Evento | null;
+	onClose: () => void;
+	onCancelar: (id: string) => void;
+}) {
+	const [confirmando, setConfirmando] = useState(false);
+
+	useEffect(() => {
+		setConfirmando(false);
+	}, [evento]);
+
+	if (!evento) return null;
+
+	const horaInicio = formatHora(evento.hora);
+	const horaFim = formatHora(evento.hora + evento.duracao);
+	const dataFormatada = format(
+		evento.data,
+		"EEEE, dd 'de' MMMM 'de' yyyy",
+		{ locale: ptBR },
+	);
+	const labelRecorrencia =
+		evento.recorrencia && evento.recorrencia !== "nenhuma"
+			? LABEL_RECORRENCIA[evento.recorrencia]
+			: null;
+
+	return (
+		<div
+			onClick={onClose}
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+		>
+			<div
+				onClick={(e) => e.stopPropagation()}
+				className="w-full max-w-sm rounded-2xl bg-white shadow-lg"
+			>
+				{/* Cabeçalho colorido com serviço */}
+				<div className={`flex items-center justify-between rounded-t-2xl border-l-4 px-5 py-4 ${evento.color}`}>
+					<div>
+						<p className="text-xs font-medium text-slate-500">Serviço</p>
+						<p className="text-base font-semibold text-slate-800">
+							{evento.servico}
+						</p>
+					</div>
+					<button
+						type="button"
+						onClick={onClose}
+						className="text-slate-400 transition hover:text-slate-600"
+					>
+						<X size={18} />
+					</button>
+				</div>
+
+				{/* Campos */}
+				<div className="space-y-3 px-5 py-5">
+					<div className="flex items-center gap-3">
+						<UserRound size={15} className="shrink-0 text-slate-400" />
+						<div>
+							<p className="text-[11px] text-slate-400">Cliente</p>
+							<p className="text-sm font-medium text-slate-800">{evento.nome}</p>
+						</div>
+					</div>
+
+					<div className="flex items-center gap-3">
+						<AvatarProfissional nome={evento.profissional} small />
+						<div>
+							<p className="text-[11px] text-slate-400">Profissional</p>
+							<p className="text-sm font-medium text-slate-800">
+								{evento.profissional}
+							</p>
+						</div>
+					</div>
+
+					<div className="flex items-center gap-3">
+						<CalendarDays size={15} className="shrink-0 text-slate-400" />
+						<div>
+							<p className="text-[11px] text-slate-400">Data</p>
+							<p className="text-sm font-medium capitalize text-slate-800">
+								{dataFormatada}
+							</p>
+						</div>
+					</div>
+
+					<div className="flex items-center gap-3">
+						<Clock size={15} className="shrink-0 text-slate-400" />
+						<div>
+							<p className="text-[11px] text-slate-400">Horário</p>
+							<p className="text-sm font-medium text-slate-800">
+								{horaInicio} – {horaFim}
+							</p>
+						</div>
+					</div>
+
+					{labelRecorrencia && (
+						<div className="flex items-center gap-3">
+							<RefreshCw size={15} className="shrink-0 text-slate-400" />
+							<div>
+								<p className="text-[11px] text-slate-400">Repete</p>
+								<p className="text-sm font-medium text-slate-800">
+									{labelRecorrencia}
+								</p>
+							</div>
+						</div>
+					)}
+
+					{evento.observacoes && (
+						<div className="flex items-start gap-3">
+							<FileText size={15} className="mt-0.5 shrink-0 text-slate-400" />
+							<div>
+								<p className="text-[11px] text-slate-400">Observações</p>
+								<p className="text-sm text-slate-700">{evento.observacoes}</p>
+							</div>
+						</div>
+					)}
+				</div>
+
+				<div className="border-t border-slate-100 px-5 pb-5 pt-3">
+					{confirmando ? (
+						<div className="flex flex-col gap-3">
+							<p className="text-sm text-slate-600">
+								Tem certeza que deseja cancelar este agendamento? Esta ação não pode ser desfeita.
+							</p>
+							<div className="flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={() => setConfirmando(false)}
+									className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+								>
+									Voltar
+								</button>
+								<button
+									type="button"
+									onClick={() => {
+										onCancelar(evento.id);
+										onClose();
+									}}
+									className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+								>
+									Sim, cancelar
+								</button>
+							</div>
+						</div>
+					) : (
+						<div className="flex items-center justify-between">
+							<button
+								type="button"
+								onClick={() => setConfirmando(true)}
+								className="rounded-xl border border-red-200 bg-red-50 px-5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100"
+							>
+								Cancelar agendamento
+							</button>
+							<button
+								type="button"
+								onClick={onClose}
+								className="rounded-xl border border-slate-200 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+							>
+								Fechar
+							</button>
+						</div>
+					)}
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -613,6 +827,7 @@ export function Agenda() {
 	const [filtroProfissional, setFiltroProfissional] = useState("");
 	const [isAgendamentoOpen, setIsAgendamentoOpen] = useState(false);
 	const [isBloqueioOpen, setIsBloqueioOpen] = useState(false);
+	const [eventoSelecionado, setEventoSelecionado] = useState<Evento | null>(null);
 
 	const eventosFiltrados = filtroProfissional
 		? eventos.filter((e) => e.profissional === filtroProfissional)
@@ -724,6 +939,7 @@ export function Agenda() {
 							date={currentDate}
 							eventos={eventosFiltrados}
 							bloqueios={bloqueios}
+							onEventoClick={setEventoSelecionado}
 						/>
 					)}
 					{view === "semana" && (
@@ -731,6 +947,7 @@ export function Agenda() {
 							date={currentDate}
 							eventos={eventosFiltrados}
 							bloqueios={bloqueios}
+							onEventoClick={setEventoSelecionado}
 						/>
 					)}
 					{view === "mes" && (
@@ -738,6 +955,7 @@ export function Agenda() {
 							date={currentDate}
 							eventos={eventosFiltrados}
 							bloqueios={bloqueios}
+							onEventoClick={setEventoSelecionado}
 						/>
 					)}
 				</div>
@@ -750,6 +968,14 @@ export function Agenda() {
 					setEventos((prev) => [...prev, novoEvento]);
 					setIsAgendamentoOpen(false);
 				}}
+			/>
+
+			<DetalheEventoModal
+				evento={eventoSelecionado}
+				onClose={() => setEventoSelecionado(null)}
+				onCancelar={(id) =>
+					setEventos((prev) => prev.filter((e) => e.id !== id))
+				}
 			/>
 
 			<FechaHorarioModal

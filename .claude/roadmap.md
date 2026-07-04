@@ -7,8 +7,8 @@
 Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota nem página correspondente em `App.tsx`:
 
 - [ ] **Dashboard** (`/dashboard`) — item de menu existe, página não.
-- [ ] **Financeiro** (`/financeiro`) — idem.
-- [ ] **Equipe** (`/equipe`) — idem.
+- [x] **Financeiro** (`/financeiro`) — implementado em 2026-07-04 (mockado, sem backend).
+- [ ] **Equipe** (`/equipe`) — item de menu existe, página não.
 - [ ] **Configurações** (`/configuracoes`) — idem.
 
 ## Funcionalidades parcialmente implementadas (mock-only)
@@ -38,7 +38,7 @@ Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota 
 
 ## Possíveis próximos módulos de negócio (inferência a partir do menu e do nome do produto)
 
-- Financeiro (cobrança, pagamentos, possivelmente ligado ao estágio "Pagamento" do Atendimento).
+- ~~Financeiro (cobrança, pagamentos, possivelmente ligado ao estágio "Pagamento" do Atendimento).~~ *(implementado em 2026-07-04 — mockado)*
 - Equipe (cadastro de profissionais — já referenciados como texto livre na Agenda: "Júlia", "Rafa", "Você").
 - Configurações (dados da empresa, hoje hardcoded como "Marmoraria Decore Granitos" no `Header`).
 - Possível automação/IA no funil de atendimento, dado o uso de n8n e o domínio `aura-ia.cloud`.
