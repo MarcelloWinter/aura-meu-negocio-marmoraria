@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, Wallet, Plus } from "lucide-react";
+import type { ReactNode } from "react";
+import { TrendingUp, TrendingDown, Wallet, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 
 import { DashboardLayout } from "../../components/DashboardLayout";
 import { Modal } from "../../ui/Modal";
+import { Select } from "../../ui/Select";
+import type { SelectOption } from "../../ui/Select";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
 
@@ -15,6 +18,7 @@ type Transacao = {
 	id: string;
 	descricao: string;
 	tipo: TipoTransacao;
+	categoria?: string;
 	valor: number;
 	vencimento: string; // "DD/MM"
 	status: StatusConta;
@@ -169,7 +173,7 @@ function FluxoCaixaChart({ dados }: { dados: { dia: number; saldo: number }[] })
 // ─── Badge de status ──────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<StatusConta, { label: string; className: string }> = {
-	em_dia: { label: "Em dia", className: "bg-teal-100 text-teal-700" },
+	em_dia: { label: "Pendente", className: "bg-teal-100 text-teal-700" },
 	atrasado: { label: "Atrasado", className: "bg-red-100 text-red-600" },
 	pago: { label: "Pago", className: "bg-slate-100 text-slate-500" },
 };
@@ -183,9 +187,251 @@ function StatusBadge({ status }: { status: StatusConta }) {
 	);
 }
 
+// ─── Filtros ──────────────────────────────────────────────────────────────────
+
+type Filtros = {
+	busca: string;
+	status: StatusConta[];
+	dataInicio: string; // YYYY-MM-DD
+	dataFim: string;
+	valorMin: string;
+	valorMax: string;
+};
+
+const FILTROS_VAZIOS: Filtros = {
+	busca: "",
+	status: [],
+	dataInicio: "",
+	dataFim: "",
+	valorMin: "",
+	valorMax: "",
+};
+
+function vencimentoParaISO(vencimento: string): string {
+	const [dd, mm] = vencimento.split("/");
+	return `2026-${mm}-${dd}`;
+}
+
+function contaFiltrosAtivos(f: Filtros): number {
+	let n = 0;
+	if (f.busca) n++;
+	if (f.status.length) n++;
+	if (f.dataInicio || f.dataFim) n++;
+	if (f.valorMin || f.valorMax) n++;
+	return n;
+}
+
+function aplicarFiltros(itens: Transacao[], f: Filtros): Transacao[] {
+	return itens.filter((t) => {
+		if (f.busca && !t.descricao.toLowerCase().includes(f.busca.toLowerCase())) return false;
+		if (f.status.length > 0 && !f.status.includes(t.status)) return false;
+		if (f.dataInicio || f.dataFim) {
+			const iso = vencimentoParaISO(t.vencimento);
+			if (f.dataInicio && iso < f.dataInicio) return false;
+			if (f.dataFim && iso > f.dataFim) return false;
+		}
+		const vmin = f.valorMin !== "" ? parseFloat(f.valorMin) : null;
+		const vmax = f.valorMax !== "" ? parseFloat(f.valorMax) : null;
+		if (vmin !== null && t.valor < vmin) return false;
+		if (vmax !== null && t.valor > vmax) return false;
+		return true;
+	});
+}
+
+const STATUS_FILTRO: { value: StatusConta; label: string; ativo: string; inativo: string }[] = [
+	{
+		value: "em_dia",
+		label: "Pendente",
+		ativo: "border-teal-400 bg-teal-100 text-teal-700",
+		inativo: "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+	},
+	{
+		value: "atrasado",
+		label: "Atrasado",
+		ativo: "border-red-400 bg-red-100 text-red-600",
+		inativo: "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+	},
+];
+
+const INPUT_FILTRO =
+	"rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400";
+
+function ListaFiltrada({
+	titulo,
+	itens,
+	renderItem,
+}: {
+	titulo: string;
+	itens: Transacao[];
+	renderItem: (t: Transacao) => ReactNode;
+}) {
+	const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS);
+	const [painelAberto, setPainelAberto] = useState(false);
+
+	const itensFiltrados = aplicarFiltros(itens, filtros);
+	const totalAtivos = contaFiltrosAtivos(filtros);
+
+	function toggleStatus(s: StatusConta) {
+		setFiltros((prev) => ({
+			...prev,
+			status: prev.status.includes(s)
+				? prev.status.filter((x) => x !== s)
+				: [...prev.status, s],
+		}));
+	}
+
+	function limpar() {
+		setFiltros(FILTROS_VAZIOS);
+	}
+
+	const semResultado = itensFiltrados.length === 0;
+	const filtrosAtivos = totalAtivos > 0 || filtros.busca !== "";
+
+	return (
+		<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+			{/* Cabeçalho com busca e botão de filtros */}
+			<div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+				<h2 className="text-base font-semibold text-slate-800">{titulo}</h2>
+				<div className="flex items-center gap-2">
+					<div className="relative">
+						<Search
+							size={13}
+							className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+						/>
+						<input
+							type="text"
+							placeholder="Buscar..."
+							value={filtros.busca}
+							onChange={(e) => setFiltros((p) => ({ ...p, busca: e.target.value }))}
+							className="rounded-lg border border-slate-200 py-1.5 pl-7 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+						/>
+					</div>
+					<button
+						onClick={() => setPainelAberto((p) => !p)}
+						className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+							painelAberto || totalAtivos > 0
+								? "border-blue-300 bg-blue-50 text-blue-600"
+								: "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+						}`}
+					>
+						<SlidersHorizontal size={13} />
+						Filtros
+						{totalAtivos > 0 && (
+							<span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+								{totalAtivos}
+							</span>
+						)}
+					</button>
+				</div>
+			</div>
+
+			{/* Painel de filtros */}
+			{painelAberto && (
+				<div className="mb-4 space-y-3 rounded-xl bg-slate-50 p-3">
+					{/* Status */}
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="text-xs font-medium text-slate-500">Status:</span>
+						{STATUS_FILTRO.map((s) => (
+							<button
+								key={s.value}
+								onClick={() => toggleStatus(s.value)}
+								className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition ${
+									filtros.status.includes(s.value) ? s.ativo : s.inativo
+								}`}
+							>
+								{s.label}
+							</button>
+						))}
+					</div>
+
+					{/* Intervalo de data */}
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="text-xs font-medium text-slate-500">Vence:</span>
+						<input
+							type="date"
+							value={filtros.dataInicio}
+							onChange={(e) => setFiltros((p) => ({ ...p, dataInicio: e.target.value }))}
+							className={INPUT_FILTRO}
+						/>
+						<span className="text-xs text-slate-400">até</span>
+						<input
+							type="date"
+							value={filtros.dataFim}
+							onChange={(e) => setFiltros((p) => ({ ...p, dataFim: e.target.value }))}
+							className={INPUT_FILTRO}
+						/>
+					</div>
+
+					{/* Intervalo de valor */}
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="text-xs font-medium text-slate-500">Valor:</span>
+						<input
+							type="number"
+							min="0"
+							step="0.01"
+							placeholder="Mín"
+							value={filtros.valorMin}
+							onChange={(e) => setFiltros((p) => ({ ...p, valorMin: e.target.value }))}
+							className={`${INPUT_FILTRO} w-24`}
+						/>
+						<span className="text-xs text-slate-400">até</span>
+						<input
+							type="number"
+							min="0"
+							step="0.01"
+							placeholder="Máx"
+							value={filtros.valorMax}
+							onChange={(e) => setFiltros((p) => ({ ...p, valorMax: e.target.value }))}
+							className={`${INPUT_FILTRO} w-24`}
+						/>
+						{totalAtivos > 0 && (
+							<button
+								onClick={limpar}
+								className="ml-auto flex items-center gap-1 text-xs text-slate-400 transition hover:text-slate-700"
+							>
+								<X size={11} />
+								Limpar filtros
+							</button>
+						)}
+					</div>
+				</div>
+			)}
+
+			{/* Lista */}
+			<div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
+				{semResultado ? (
+					<p className="py-2 text-sm text-slate-400">
+						{filtrosAtivos ? "Nenhum resultado encontrado." : "Nenhuma conta pendente."}
+					</p>
+				) : (
+					itensFiltrados.map(renderItem)
+				)}
+			</div>
+		</div>
+	);
+}
+
 // ─── Modal de nova transação ──────────────────────────────────────────────────
 
-const ERROS_VAZIOS = { descricao: "", valor: "", vencimento: "" };
+const CATEGORIAS_RECEITA: SelectOption[] = [
+	{ label: "Serviço", value: "servico" },
+	{ label: "Produto", value: "produto" },
+	{ label: "Outros", value: "outros" },
+];
+
+const CATEGORIAS_DESPESA: SelectOption[] = [
+	{ label: "Custo fixo", value: "custo_fixo" },
+	{ label: "Custo variável", value: "custo_variavel" },
+	{ label: "Outros", value: "outros" },
+];
+
+const STATUS_OPCOES: SelectOption[] = [
+	{ label: "Pago", value: "pago" },
+	{ label: "Pendente", value: "em_dia" },
+	{ label: "Atrasado", value: "atrasado" },
+];
+
+const ERROS_VAZIOS = { descricao: "", categoria: "", valor: "", data: "" };
 
 function NovaTransacaoModal({
 	tipo,
@@ -199,14 +445,20 @@ function NovaTransacaoModal({
 	onSave: (t: Omit<Transacao, "id">) => void;
 }) {
 	const [descricao, setDescricao] = useState("");
+	const [categoria, setCategoria] = useState("");
 	const [valor, setValor] = useState("");
-	const [vencimento, setVencimento] = useState("");
+	const [data, setData] = useState("");
+	const [status, setStatus] = useState<StatusConta>("em_dia");
 	const [errors, setErrors] = useState(ERROS_VAZIOS);
+
+	const categorias = tipo === "receita" ? CATEGORIAS_RECEITA : CATEGORIAS_DESPESA;
 
 	function limpar() {
 		setDescricao("");
+		setCategoria("");
 		setValor("");
-		setVencimento("");
+		setData("");
+		setStatus("em_dia");
 		setErrors(ERROS_VAZIOS);
 	}
 
@@ -220,8 +472,9 @@ function NovaTransacaoModal({
 		const v = parseFloat(valor.replace(",", "."));
 		const novosErros = {
 			descricao: descricao.trim() ? "" : "Informe a descrição.",
+			categoria: categoria ? "" : "Selecione a categoria.",
 			valor: !valor ? "Informe o valor." : isNaN(v) || v <= 0 ? "Valor inválido." : "",
-			vencimento: vencimento ? "" : "Informe o vencimento.",
+			data: data ? "" : "Informe a data.",
 		};
 		setErrors(novosErros);
 		if (Object.values(novosErros).some(Boolean)) return;
@@ -229,45 +482,65 @@ function NovaTransacaoModal({
 		onSave({
 			descricao: descricao.trim(),
 			tipo,
+			categoria,
 			valor: v,
-			vencimento: isoParaDDMM(vencimento),
-			status: "em_dia",
+			vencimento: isoParaDDMM(data),
+			status,
 		});
 		limpar();
 	}
 
 	const titulo = tipo === "receita" ? "Nova receita" : "Nova despesa";
-	const labelDescricao = tipo === "receita" ? "Cliente / Descrição" : "Descrição";
-	const placeholderDescricao = tipo === "receita" ? "Nome do cliente ou serviço" : "Ex: Aluguel, Energia…";
 
 	return (
 		<Modal isOpen={isOpen} onClose={handleClose} title={titulo}>
 			<form onSubmit={handleSubmit} className="space-y-4">
 				<Input
-					label={labelDescricao}
-					placeholder={placeholderDescricao}
+					label="Descrição"
+					placeholder={tipo === "receita" ? "Nome do cliente ou serviço" : "Ex: Aluguel, Energia…"}
 					autoFocus
 					value={descricao}
 					onChange={(e) => setDescricao(e.target.value)}
 					error={errors.descricao}
 				/>
-				<Input
-					label="Valor (R$)"
-					type="number"
-					min="0.01"
-					step="0.01"
-					placeholder="0,00"
-					value={valor}
-					onChange={(e) => setValor(e.target.value)}
-					error={errors.valor}
-				/>
-				<Input
-					label="Vencimento"
-					type="date"
-					value={vencimento}
-					onChange={(e) => setVencimento(e.target.value)}
-					error={errors.vencimento}
-				/>
+
+				<div className="grid grid-cols-2 gap-4">
+					<Select
+						label="Categoria"
+						placeholder="Selecione"
+						value={categoria}
+						onChange={setCategoria}
+						options={categorias}
+						error={errors.categoria}
+					/>
+					<Input
+						label="Valor (R$)"
+						type="number"
+						min="0.01"
+						step="0.01"
+						placeholder="0"
+						value={valor}
+						onChange={(e) => setValor(e.target.value)}
+						error={errors.valor}
+					/>
+				</div>
+
+				<div className="grid grid-cols-2 gap-4">
+					<Input
+						label="Data"
+						type="date"
+						value={data}
+						onChange={(e) => setData(e.target.value)}
+						error={errors.data}
+					/>
+					<Select
+						label="Status"
+						value={status}
+						onChange={(v) => setStatus(v as StatusConta)}
+						options={STATUS_OPCOES}
+					/>
+				</div>
+
 				<div className="flex justify-end gap-3 pt-2">
 					<Button
 						type="button"
@@ -309,6 +582,7 @@ export function Financeiro() {
 	const contasPagar = transacoes.filter(
 		(t) => t.tipo === "despesa" && t.status !== "pago",
 	);
+
 
 	function addTransacao(dados: Omit<Transacao, "id">) {
 		setTransacoes((prev) => [...prev, { id: crypto.randomUUID(), ...dados }]);
@@ -398,74 +672,54 @@ export function Financeiro() {
 
 					{/* Contas */}
 					<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-						{/* Contas a receber */}
-						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-							<h2 className="mb-4 text-base font-semibold text-slate-800">
-								Contas a receber
-							</h2>
-							<div className="divide-y divide-slate-100">
-								{contasReceber.length === 0 ? (
-									<p className="py-2 text-sm text-slate-400">
-										Nenhuma conta pendente.
-									</p>
-								) : (
-									contasReceber.map((t) => (
-										<div
-											key={t.id}
-											className="flex items-center justify-between gap-3 py-3"
-										>
-											<div className="min-w-0">
-												<p className="truncate text-sm font-medium text-slate-800">
-													{t.descricao}
-												</p>
-												<p className="text-xs text-slate-400">
-													Vence em {t.vencimento}
-												</p>
-											</div>
-											<div className="flex shrink-0 items-center gap-3">
-												<StatusBadge status={t.status} />
-												<span className="text-sm font-semibold text-slate-800">
-													{formatBRL(t.valor)}
-												</span>
-											</div>
-										</div>
-									))
-								)}
-							</div>
-						</div>
+						<ListaFiltrada
+							titulo="Contas a receber"
+							itens={contasReceber}
+							renderItem={(t) => (
+								<div
+									key={t.id}
+									className="flex items-center justify-between gap-3 py-3"
+								>
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium text-slate-800">
+											{t.descricao}
+										</p>
+										<p className="text-xs text-slate-400">
+											Vence em {t.vencimento}
+										</p>
+									</div>
+									<div className="flex shrink-0 items-center gap-3">
+										<StatusBadge status={t.status} />
+										<span className="text-sm font-semibold text-slate-800">
+											{formatBRL(t.valor)}
+										</span>
+									</div>
+								</div>
+							)}
+						/>
 
-						{/* Contas a pagar */}
-						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-							<h2 className="mb-4 text-base font-semibold text-slate-800">
-								Contas a pagar
-							</h2>
-							<div className="divide-y divide-slate-100">
-								{contasPagar.length === 0 ? (
-									<p className="py-2 text-sm text-slate-400">
-										Nenhuma conta pendente.
-									</p>
-								) : (
-									contasPagar.map((t) => (
-										<div
-											key={t.id}
-											className="flex items-center justify-between gap-2 py-3"
-										>
-											<div className="min-w-0">
-												<p className="truncate text-sm font-medium text-slate-800">
-													{t.descricao}
-												</p>
-												<p className="text-xs text-slate-400">
-													Vence em {t.vencimento}
-												</p>
-											</div>
-											<span className="shrink-0 text-sm font-semibold text-slate-800">
-												{formatBRL(t.valor)}
-											</span>
-										</div>
-									))
-								)}
-							</div>
-						</div>
+						<ListaFiltrada
+							titulo="Contas a pagar"
+							itens={contasPagar}
+							renderItem={(t) => (
+								<div
+									key={t.id}
+									className="flex items-center justify-between gap-2 py-3"
+								>
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium text-slate-800">
+											{t.descricao}
+										</p>
+										<p className="text-xs text-slate-400">
+											Vence em {t.vencimento}
+										</p>
+									</div>
+									<span className="shrink-0 text-sm font-semibold text-slate-800">
+										{formatBRL(t.valor)}
+									</span>
+								</div>
+							)}
+						/>
 					</div>
 				</div>
 			</div>

@@ -97,7 +97,28 @@ SVG puro responsivo com curva bezier suave e gradiente de preenchimento. Dados d
 
 ### Formulários de nova transação
 
-Botões "+ Nova receita" e "+ Nova despesa" no header abrem o mesmo componente `NovaTransacaoModal` com `tipo` diferente. Campos: Descrição, Valor (numérico) e Vencimento (date picker). Validação obrigatória em todos os campos. Ao salvar, a transação entra no array com `status: "em_dia"`, o modal fecha e os totais dos cards atualizam imediatamente.
+Botões "+ Nova receita" e "+ Nova despesa" no header abrem o mesmo componente `NovaTransacaoModal` com `tipo` diferente. Campos (todos obrigatórios):
+- **Descrição** — texto livre, largura total.
+- **Categoria** — Select. Receita: "Serviço / Produto / Outros". Despesa: "Custo fixo / Custo variável / Outros".
+- **Valor (R$)** — numérico, ao lado de Categoria (grid 2 colunas).
+- **Data** — date picker, ao lado de Status (grid 2 colunas).
+- **Status** — Select: "Pago / Pendente / Atrasado", padrão "Pendente". Itens salvos como "Pago" não aparecem nas listas de pendentes.
+
+Ao salvar, a transação é adicionada ao array com o status escolhido; totais dos cards atualizam imediatamente.
+
+### Filtros nas listas de contas
+
+Ambas as listas usam o componente `ListaFiltrada`, que encapsula estado de filtro próprio (cada lista é independente). O cabeçalho de cada card expõe:
+- **Campo de busca** — filtra `descricao` em tempo real.
+- **Botão "Filtros"** — expande painel com badge de contagem quando há filtros ativos.
+
+O painel expandível oferece:
+- **Status** — chips multi-select (Pendente / Atrasado).
+- **Vence** — intervalo de datas (De / Até), comparado via conversão `DD/MM` → `YYYY-MM-DD` assumindo ano 2026.
+- **Valor** — intervalo numérico (Mín / Máx).
+- **Limpar filtros** — reseta todo o estado quando algum filtro está ativo.
+
+Os filtros se combinam em cascata; a lista respeita `max-h-72` com `overflow-y-auto` para não crescer a página.
 
 ## Navegação / menu (Sidebar)
 

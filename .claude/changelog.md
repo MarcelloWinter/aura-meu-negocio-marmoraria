@@ -2,6 +2,32 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
+## 2026-07-06 — (não commitado)
+**Financeiro: reformulação do formulário e filtros avançados nas listas**
+
+### Formulário de nova receita/despesa
+- Adicionado campo **Categoria** (Select): opções "Serviço / Produto / Outros" para receitas e "Custo fixo / Custo variável / Outros" para despesas. Campo obrigatório com validação inline.
+- Adicionado campo **Status** (Select): "Pago / Pendente / Atrasado", padrão "Pendente". O status selecionado é persistido na transação — itens salvos como "Pago" não aparecem nas listas pendentes.
+- Layout reorganizado em dois grids 2 colunas: linha 1 = Categoria + Valor, linha 2 = Data + Status. Campo Descrição em linha própria (largura total).
+- Rótulo "Vencimento" renomeado para "Data". Rótulo "Cliente / Descrição" simplificado para "Descrição" em ambos os tipos.
+- `Transacao` recebe campo opcional `categoria?: string` (retrocompatível com dados mock existentes que não têm categoria).
+- Label do badge "Em dia" renomeado para "Pendente" em `STATUS_CONFIG`, alinhando com as opções do formulário.
+
+### Altura limitada com scroll nas listas
+- Containers de "Contas a receber" e "Contas a pagar" passaram a ter `max-h-72` + `overflow-y-auto`: crescem até 288 px e habilitam scroll ao ultrapassar esse limite, evitando que a página se alongue indefinidamente ao adicionar itens.
+
+### Filtros avançados (`ListaFiltrada`)
+- Cards de "Contas a receber" e "Contas a pagar" refatorados para usar o componente `ListaFiltrada`, que encapsula estado e lógica de filtro internamente (cada lista tem filtros independentes).
+- **Campo de busca** — mantido no cabeçalho, filtra por `descricao` em tempo real.
+- **Botão "Filtros"** — ao lado da busca; fica azul e exibe badge com contagem de filtros ativos quando acionado.
+- **Painel expandível** com três linhas de filtro:
+  - **Status**: chips multi-select "Pendente" (teal) e "Atrasado" (vermelho), visualmente distintos quando selecionados.
+  - **Vence**: intervalo de datas (De / Até), inputs `type="date"` — comparação via conversão `DD/MM` → `YYYY-MM-DD` assumindo ano 2026.
+  - **Valor**: intervalo numérico (Mín / Máx), inputs `type="number"`.
+- **"Limpar filtros"** — botão visível na linha de valor quando qualquer filtro está ativo; reseta todo o estado de filtro.
+- Mensagem "Nenhum resultado encontrado." quando filtros estão ativos mas não há correspondência; "Nenhuma conta pendente." quando a lista está vazia sem filtros.
+- Função auxiliar `aplicarFiltros(itens, filtros)` aplica todos os critérios em cascata; `contaFiltrosAtivos(filtros)` computa o badge numérico.
+
 ## 2026-07-04 — (não commitado)
 **Módulo Financeiro (`/financeiro`)**
 
