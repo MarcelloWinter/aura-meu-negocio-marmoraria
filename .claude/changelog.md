@@ -2,6 +2,20 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
+## 2026-07-08 — (não commitado)
+**Financeiro: modal de detalhe e exclusão de transações**
+
+- Qualquer linha de "Contas a receber" ou "Contas a pagar" é agora clicável (cursor `pointer`, highlight `hover:bg-slate-50`). O clique abre `DetalheTransacaoModal`.
+- `DetalheTransacaoModal` exibe:
+  - Cabeçalho colorido (teal para receita, vermelho para despesa) com ícone de tendência, rótulo do tipo e badge de status.
+  - Descrição e valor em destaque no cabeçalho.
+  - Campos informativos: Vencimento e Categoria (exibida com rótulo legível via `LABEL_CATEGORIA`; omitida quando não preenchida).
+  - Rodapé com botão **Excluir** (lixeira + borda vermelha) e botão **Fechar**.
+- Exclusão em **dois passos**: primeiro clique no "Excluir" exibe mensagem de confirmação; "Confirmar exclusão" remove a transação do array de estado e fecha o modal; "Voltar" retorna ao estado normal. O estado `confirmando` é resetado via `useEffect([transacao])` ao trocar de item selecionado.
+- `ListaFiltrada` recebe nova prop opcional `onItemClick?: (t: Transacao) => void`. Quando presente, cada item é envolvido em um `div` com `role="button"`, `tabIndex={0}`, `onClick` e `onKeyDown` (Enter), desacoplando o comportamento de clique do `renderItem`.
+- Adicionado mapa `LABEL_CATEGORIA` e helper `labelCategoria` para converter valores internos de categoria (ex.: `"custo_variavel"`) em rótulos legíveis (ex.: `"Custo variável"`).
+- Adicionado `Trash2` aos imports de `lucide-react` e `useEffect` aos imports do React.
+
 ## 2026-07-06 — (não commitado)
 **Financeiro: reformulação do formulário e filtros avançados nas listas**
 

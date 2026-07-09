@@ -92,8 +92,10 @@ SVG puro responsivo com curva bezier suave e gradiente de preenchimento. Dados d
 
 ### Listas de contas
 
-- **Contas a receber**: `transacoes.filter(t => t.tipo === "receita" && t.status !== "pago")`. Exibe badge de status (`Em dia` / `Atrasado`).
-- **Contas a pagar**: `transacoes.filter(t => t.tipo === "despesa" && t.status !== "pago")`. Sem badge (apenas data e valor).
+- **Contas a receber**: `transacoes.filter(t => t.tipo === "receita")` — exibe **todas** as receitas, incluindo pagas.
+- **Contas a pagar**: `transacoes.filter(t => t.tipo === "despesa")` — exibe **todas** as despesas, incluindo pagas.
+- Ambas exibem badge de status (`Pendente` / `Atrasado` / `Pago`).
+- Clicar em qualquer linha abre `DetalheTransacaoModal` com as informações completas e opção de exclusão.
 
 ### Formulários de nova transação
 
@@ -113,12 +115,20 @@ Ambas as listas usam o componente `ListaFiltrada`, que encapsula estado de filtr
 - **Botão "Filtros"** — expande painel com badge de contagem quando há filtros ativos.
 
 O painel expandível oferece:
-- **Status** — chips multi-select (Pendente / Atrasado).
+- **Status** — chips multi-select (Pendente / Atrasado / Pago).
 - **Vence** — intervalo de datas (De / Até), comparado via conversão `DD/MM` → `YYYY-MM-DD` assumindo ano 2026.
 - **Valor** — intervalo numérico (Mín / Máx).
 - **Limpar filtros** — reseta todo o estado quando algum filtro está ativo.
 
 Os filtros se combinam em cascata; a lista respeita `max-h-72` com `overflow-y-auto` para não crescer a página.
+
+### Detalhe e exclusão de transação (`DetalheTransacaoModal`)
+
+Clicar em qualquer item de "Contas a receber" ou "Contas a pagar" abre o modal de detalhe:
+- **Cabeçalho colorido** (teal = receita, vermelho = despesa): ícone de tendência, tipo, badge de status, descrição e valor.
+- **Campos**: Vencimento e Categoria (com rótulo legível; omitida se não preenchida).
+- **Exclusão em dois passos**: botão "Excluir" (lixeira) → mensagem de confirmação → "Confirmar exclusão" remove o registro do estado local e fecha o modal. "Voltar" cancela a exclusão.
+- O estado de confirmação é resetado automaticamente ao trocar de transação selecionada.
 
 ## Navegação / menu (Sidebar)
 
