@@ -6,6 +6,8 @@ import type { SelectOption } from "../../ui/Select";
 import { Textarea } from "../../ui/Textarea";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
+import { ClienteSelect } from "../../components/ClienteSelect";
+import type { Cliente } from "../../contexts/ClientesContext";
 
 import type { Evento, Recorrencia } from "./Agenda";
 
@@ -74,6 +76,8 @@ const DESCRICAO_RECORRENCIA: Record<Recorrencia, string> = {
 	mensal: "O agendamento se repete todo mês neste mesmo dia.",
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function getInitials(name: string) {
 	return name
 		.split(" ")
@@ -121,6 +125,8 @@ function renderProfissional(option: SelectOption) {
 	);
 }
 
+// ─── Modal de novo agendamento ────────────────────────────────────────────────
+
 const ERROS_VAZIOS = {
 	cliente: "",
 	servico: "",
@@ -141,7 +147,7 @@ export function NovoAgendamentoModal({
 	onClose,
 	onSave,
 }: NovoAgendamentoModalProps) {
-	const [cliente, setCliente] = useState("");
+	const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
 	const [servico, setServico] = useState("");
 	const [profissional, setProfissional] = useState("");
 	const [data, setData] = useState("");
@@ -169,7 +175,7 @@ export function NovoAgendamentoModal({
 	}
 
 	function limparFormulario() {
-		setCliente("");
+		setClienteSelecionado(null);
 		setServico("");
 		setProfissional("");
 		setData("");
@@ -194,7 +200,7 @@ export function NovoAgendamentoModal({
 				: true;
 
 		const novosErros = {
-			cliente: cliente.trim() ? "" : "Informe o cliente.",
+			cliente: clienteSelecionado ? "" : "Selecione ou cadastre um cliente.",
 			servico: servico ? "" : "Selecione o serviço.",
 			profissional: profissional ? "" : "Selecione o profissional.",
 			data: data ? "" : "Informe a data.",
@@ -218,7 +224,7 @@ export function NovoAgendamentoModal({
 
 		onSave({
 			id: crypto.randomUUID(),
-			nome: cliente,
+			nome: clienteSelecionado!.nome,
 			servico,
 			profissional,
 			data: new Date(`${data}T00:00:00`),
@@ -235,12 +241,9 @@ export function NovoAgendamentoModal({
 	return (
 		<Modal isOpen={isOpen} onClose={handleClose} title="Novo agendamento">
 			<form onSubmit={handleSubmit} className="space-y-4">
-				<Input
-					label="Cliente"
-					placeholder="Nome do cliente"
-					autoFocus
-					value={cliente}
-					onChange={(e) => setCliente(e.target.value)}
+				<ClienteSelect
+					value={clienteSelecionado}
+					onChange={setClienteSelecionado}
 					error={errors.cliente}
 				/>
 

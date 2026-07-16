@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
-import { TrendingUp, TrendingDown, Wallet, Plus, Search, SlidersHorizontal, X, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Plus, Search, SlidersHorizontal, X, Trash2, CheckCircle2, Banknote, CreditCard, QrCode, FileText, ArrowLeftRight } from "lucide-react";
 
 import { DashboardLayout } from "../../components/DashboardLayout";
 import { Modal } from "../../ui/Modal";
@@ -8,11 +8,22 @@ import { Select } from "../../ui/Select";
 import type { SelectOption } from "../../ui/Select";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
+import { ClienteSelect } from "../../components/ClienteSelect";
+import type { Cliente } from "../../contexts/ClientesContext";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type TipoTransacao = "receita" | "despesa";
 type StatusConta = "em_dia" | "atrasado" | "pago";
+
+type FormaPagamento = "dinheiro" | "cartao" | "pix" | "cheque" | "ted";
+
+type Pagamento = {
+	id: string;
+	valor: number;
+	data: string; // YYYY-MM-DD
+	forma: FormaPagamento;
+};
 
 type Transacao = {
 	id: string;
@@ -22,6 +33,7 @@ type Transacao = {
 	valor: number;
 	vencimento: string; // "DD/MM"
 	status: StatusConta;
+	pagamentos?: Pagamento[];
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -41,6 +53,26 @@ function isoParaDDMM(iso: string): string {
 	const [, m, d] = iso.split("-");
 	return `${d}/${m}`;
 }
+
+function isoParaDDMMAAAA(iso: string): string {
+	if (!iso) return "";
+	const [y, m, d] = iso.split("-");
+	return `${d}/${m}/${y}`;
+}
+
+function hojeISO(): string {
+	return new Date().toISOString().split("T")[0];
+}
+
+// ─── Formas de pagamento ──────────────────────────────────────────────────────
+
+const FORMAS_PAGAMENTO: { value: FormaPagamento; label: string; Icon: React.ElementType }[] = [
+	{ value: "dinheiro", label: "Dinheiro",  Icon: Banknote       },
+	{ value: "cartao",   label: "Cartão",    Icon: CreditCard     },
+	{ value: "pix",      label: "Pix",       Icon: QrCode         },
+	{ value: "cheque",   label: "Cheque",    Icon: FileText       },
+	{ value: "ted",      label: "TED",       Icon: ArrowLeftRight },
+];
 
 // ─── Dados mockados ───────────────────────────────────────────────────────────
 
@@ -591,25 +623,71 @@ function DetalheTransacaoModal({
 	transacao,
 	onClose,
 	onDeletar,
+	onRegistrarPagamento,
 }: {
 	transacao: Transacao | null;
 	onClose: () => void;
 	onDeletar: (id: string) => void;
+	onRegistrarPagamento: (id: string, pag: Omit<Pagamento, "id">) => void;
 }) {
 	const [confirmando, setConfirmando] = useState(false);
-	useEffect(() => { setConfirmando(false); }, [transacao]);
+	const [pagValor, setPagValor] = useState("");
+	const [pagData, setPagData] = useState(hojeISO());
+	const [pagForma, setPagForma] = useState<FormaPagamento | "">("");
+	const [pagErrors, setPagErrors] = useState({ valor: "", data: "", forma: "" });
+
+	useEffect(() => {
+		if (!transacao) return;
+		setConfirmando(false);
+		const pago = (transacao.pagamentos ?? []).reduce((s, p) => s + p.valor, 0);
+		const restante = transacao.valor - pago;
+		setPagValor(restante > 0 ? String(restante) : "");
+		setPagData(hojeISO());
+		setPagForma("");
+		setPagErrors({ valor: "", data: "", forma: "" });
+	}, [transacao?.id]);
 
 	if (!transacao) return null;
 
 	const isReceita = transacao.tipo === "receita";
+	const pagamentos = transacao.pagamentos ?? [];
+	const valorPago = pagamentos.reduce((s, p) => s + p.valor, 0);
+	const valorRestante = transacao.valor - valorPago;
+	const pct = Math.min((valorPago / transacao.valor) * 100, 100);
 
 	function confirmarDelete() {
 		onDeletar(transacao!.id);
 		onClose();
 	}
 
+	function handlePagamento(e: React.FormEvent<HTMLFormElement>) {
+		e.preventDefault();
+		const v = parseFloat(pagValor.replace(",", "."));
+		const novosErros = {
+			valor: !pagValor
+				? "Informe o valor."
+				: isNaN(v) || v <= 0
+					? "Valor inválido."
+					: v > valorRestante + 0.001
+						? `Máximo: ${formatBRL(valorRestante)}.`
+						: "",
+			data: pagData ? "" : "Informe a data.",
+			forma: pagForma ? "" : "Selecione a forma de pagamento.",
+		};
+		setPagErrors(novosErros);
+		if (Object.values(novosErros).some(Boolean)) return;
+
+		onRegistrarPagamento(transacao!.id, { valor: v, data: pagData, forma: pagForma as FormaPagamento });
+		const novoRestante = valorRestante - v;
+		setPagValor(novoRestante > 0.005 ? String(parseFloat(novoRestante.toFixed(2))) : "");
+		setPagData(hojeISO());
+		setPagForma("");
+		setPagErrors({ valor: "", data: "", forma: "" });
+	}
+
 	return (
 		<Modal isOpen={true} onClose={onClose} title={isReceita ? "Receita" : "Despesa"}>
+			{/* Cabeçalho colorido */}
 			<div className={`mb-5 rounded-xl p-4 ${isReceita ? "bg-teal-50" : "bg-red-50"}`}>
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
@@ -628,6 +706,7 @@ function DetalheTransacaoModal({
 				</p>
 			</div>
 
+			{/* Informações */}
 			<div className="space-y-3">
 				<div className="flex items-center justify-between text-sm">
 					<span className="text-slate-500">Vencimento</span>
@@ -641,9 +720,131 @@ function DetalheTransacaoModal({
 				)}
 			</div>
 
+			{/* Seção de pagamentos */}
+			<div className="mt-5 space-y-4">
+				<div className="border-t border-slate-100" />
+
+				{/* Barra de progresso */}
+				{valorPago > 0 && (
+					<div>
+						<div className="mb-1.5 flex items-center justify-between text-xs">
+							<span className="text-slate-500">
+								{isReceita ? "Valor recebido" : "Valor pago"}
+							</span>
+							<span className="font-medium text-slate-700">
+								{formatBRL(valorPago)}{" "}
+								<span className="text-slate-400">de {formatBRL(transacao.valor)}</span>
+							</span>
+						</div>
+						<div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+							<div
+								className="h-full rounded-full bg-teal-500 transition-all duration-500"
+								style={{ width: `${pct}%` }}
+							/>
+						</div>
+					</div>
+				)}
+
+				{/* Histórico */}
+				{pagamentos.length > 0 && (
+					<div>
+						<p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+							{isReceita ? "Histórico de recebimentos" : "Histórico de pagamentos"}
+						</p>
+						<div className="max-h-36 space-y-1.5 overflow-y-auto">
+							{pagamentos.map((p) => {
+								const formaConfig = FORMAS_PAGAMENTO.find((f) => f.value === p.forma);
+								const FormaIcon = formaConfig?.Icon;
+								return (
+									<div
+										key={p.id}
+										className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+									>
+										<div className="flex items-center gap-2">
+											<span className="text-slate-500">{isoParaDDMMAAAA(p.data)}</span>
+											{formaConfig && (
+												<span className="flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+													{FormaIcon && <FormaIcon size={10} />}
+													{formaConfig.label}
+												</span>
+											)}
+										</div>
+										<span className={`font-semibold ${isReceita ? "text-teal-700" : "text-red-600"}`}>
+											{isReceita ? "+ " : "- "}{formatBRL(p.valor)}
+										</span>
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				)}
+
+				{/* Formulário de registro */}
+				{transacao.status !== "pago" && (
+					<form onSubmit={handlePagamento} className="space-y-3">
+						<p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+							{isReceita ? "Registrar recebimento" : "Registrar pagamento"}
+						</p>
+
+						{/* Forma de pagamento */}
+						<div>
+							<div className="grid grid-cols-5 gap-1.5">
+								{FORMAS_PAGAMENTO.map(({ value, label, Icon }) => (
+									<button
+										key={value}
+										type="button"
+										onClick={() => setPagForma(value)}
+										className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-[11px] font-medium transition ${
+											pagForma === value
+												? "border-teal-400 bg-teal-50 text-teal-700"
+												: "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+										}`}
+									>
+										<Icon size={14} />
+										{label}
+									</button>
+								))}
+							</div>
+							{pagErrors.forma && (
+								<p className="mt-1 text-xs text-red-500">{pagErrors.forma}</p>
+							)}
+						</div>
+
+						<div className="grid grid-cols-2 gap-3">
+							<Input
+								label="Valor (R$)"
+								type="number"
+								min="0.01"
+								step="0.01"
+								placeholder="0,00"
+								value={pagValor}
+								onChange={(e) => setPagValor(e.target.value)}
+								error={pagErrors.valor}
+							/>
+							<Input
+								label="Data"
+								type="date"
+								value={pagData}
+								onChange={(e) => setPagData(e.target.value)}
+								error={pagErrors.data}
+							/>
+						</div>
+						<button
+							type="submit"
+							className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 py-2.5 text-sm font-medium text-white transition hover:bg-teal-700"
+						>
+							<CheckCircle2 size={14} />
+							{isReceita ? "Confirmar recebimento" : "Confirmar pagamento"}
+						</button>
+					</form>
+				)}
+			</div>
+
+			{/* Rodapé */}
 			{!confirmando ? (
 				<div className="mt-6 flex items-center justify-between">
 					<button
+						type="button"
 						onClick={() => setConfirmando(true)}
 						className="flex items-center gap-1.5 rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
 					>
@@ -664,6 +865,7 @@ function DetalheTransacaoModal({
 							Voltar
 						</Button>
 						<button
+							type="button"
 							onClick={confirmarDelete}
 							className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
 						>
@@ -690,10 +892,6 @@ const CATEGORIAS_DESPESA: SelectOption[] = [
 	{ label: "Outros", value: "outros" },
 ];
 
-const STATUS_OPCOES: SelectOption[] = [
-	{ label: "Pendente", value: "em_dia" },
-	{ label: "Pago", value: "pago" },
-];
 
 const ERROS_VAZIOS = { descricao: "", categoria: "", valor: "", data: "" };
 
@@ -708,21 +906,22 @@ function NovaTransacaoModal({
 	onClose: () => void;
 	onSave: (t: Omit<Transacao, "id">) => void;
 }) {
+	const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
 	const [descricao, setDescricao] = useState("");
 	const [categoria, setCategoria] = useState("");
 	const [valor, setValor] = useState("");
 	const [data, setData] = useState("");
-	const [status, setStatus] = useState<StatusConta>("em_dia");
 	const [errors, setErrors] = useState(ERROS_VAZIOS);
 
 	const categorias = tipo === "receita" ? CATEGORIAS_RECEITA : CATEGORIAS_DESPESA;
 
 	function limpar() {
+		setClienteSelecionado(null);
 		setDescricao("");
 		setCategoria("");
 		setValor("");
 		setData("");
-		setStatus("em_dia");
+
 		setErrors(ERROS_VAZIOS);
 	}
 
@@ -734,8 +933,12 @@ function NovaTransacaoModal({
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		const v = parseFloat(valor.replace(",", "."));
+		const descricaoFinal = tipo === "receita" ? (clienteSelecionado?.nome ?? "") : descricao;
 		const novosErros = {
-			descricao: descricao.trim() ? "" : "Informe a descrição.",
+			descricao:
+				tipo === "receita"
+					? clienteSelecionado ? "" : "Selecione ou cadastre um cliente."
+					: descricao.trim() ? "" : "Informe a descrição.",
 			categoria: categoria ? "" : "Selecione a categoria.",
 			valor: !valor ? "Informe o valor." : isNaN(v) || v <= 0 ? "Valor inválido." : "",
 			data: data ? "" : "Informe a data.",
@@ -744,12 +947,12 @@ function NovaTransacaoModal({
 		if (Object.values(novosErros).some(Boolean)) return;
 
 		onSave({
-			descricao: descricao.trim(),
+			descricao: descricaoFinal,
 			tipo,
 			categoria,
 			valor: v,
 			vencimento: isoParaDDMM(data),
-			status,
+			status: "em_dia",
 		});
 		limpar();
 	}
@@ -759,14 +962,22 @@ function NovaTransacaoModal({
 	return (
 		<Modal isOpen={isOpen} onClose={handleClose} title={titulo}>
 			<form onSubmit={handleSubmit} className="space-y-4">
-				<Input
-					label="Descrição"
-					placeholder={tipo === "receita" ? "Nome do cliente ou serviço" : "Ex: Aluguel, Energia…"}
-					autoFocus
-					value={descricao}
-					onChange={(e) => setDescricao(e.target.value)}
-					error={errors.descricao}
-				/>
+				{tipo === "receita" ? (
+					<ClienteSelect
+						value={clienteSelecionado}
+						onChange={setClienteSelecionado}
+						error={errors.descricao}
+					/>
+				) : (
+					<Input
+						label="Descrição"
+						placeholder="Ex: Aluguel, Energia…"
+						autoFocus
+						value={descricao}
+						onChange={(e) => setDescricao(e.target.value)}
+						error={errors.descricao}
+					/>
+				)}
 
 				<div className="grid grid-cols-2 gap-4">
 					<Select
@@ -789,21 +1000,13 @@ function NovaTransacaoModal({
 					/>
 				</div>
 
-				<div className="grid grid-cols-2 gap-4">
-					<Input
-						label="Data"
-						type="date"
-						value={data}
-						onChange={(e) => setData(e.target.value)}
-						error={errors.data}
-					/>
-					<Select
-						label="Status"
-						value={status}
-						onChange={(v) => setStatus(v as StatusConta)}
-						options={STATUS_OPCOES}
-					/>
-				</div>
+				<Input
+					label="Data"
+					type="date"
+					value={data}
+					onChange={(e) => setData(e.target.value)}
+					error={errors.data}
+				/>
 
 				<div className="flex justify-end gap-3 pt-2">
 					<Button
@@ -848,6 +1051,23 @@ export function Financeiro() {
 	const contasReceber = transacoes.filter((t) => t.tipo === "receita");
 	const contasPagar = transacoes.filter((t) => t.tipo === "despesa");
 
+	// Sempre reflete o estado mais recente da transação selecionada
+	const transacaoExibida = transacaoSelecionada
+		? (transacoes.find((t) => t.id === transacaoSelecionada.id) ?? null)
+		: null;
+
+
+	function registrarPagamento(id: string, pag: Omit<Pagamento, "id">) {
+		setTransacoes((prev) =>
+			prev.map((t) => {
+				if (t.id !== id) return t;
+				const pagamentos = [...(t.pagamentos ?? []), { id: crypto.randomUUID(), ...pag }];
+				const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0);
+				const status: StatusConta = totalPago >= t.valor - 0.001 ? "pago" : t.status;
+				return { ...t, pagamentos, status };
+			}),
+		);
+	}
 
 	function addTransacao(dados: Omit<Transacao, "id">) {
 		setTransacoes((prev) => [...prev, { id: crypto.randomUUID(), ...dados }]);
@@ -986,9 +1206,10 @@ export function Financeiro() {
 			</div>
 
 			<DetalheTransacaoModal
-				transacao={transacaoSelecionada}
+				transacao={transacaoExibida}
 				onClose={() => setTransacaoSelecionada(null)}
 				onDeletar={deletarTransacao}
+				onRegistrarPagamento={registrarPagamento}
 			/>
 
 			<NovaTransacaoModal

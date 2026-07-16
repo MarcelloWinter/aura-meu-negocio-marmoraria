@@ -43,6 +43,7 @@ Cada evento tem: cliente, serviço, profissional responsável, data absoluta (`d
 
 ### Formulário de novo agendamento (`NovoAgendamentoModal`)
 - Campos: Cliente, Serviço (com ponto colorido por tipo), Profissional (com avatar de iniciais), Data, Início, Fim, Observações.
+- **Campo "Cliente"** usa o componente `ClienteSelect` — busca filtrada por nome ou telefone na lista do módulo Clientes (via `ClientesContext`). Permite criar um novo cliente diretamente via mini-modal (Nome + Telefone) sem sair do formulário; o cliente criado é automaticamente selecionado e adicionado ao contexto compartilhado.
 - **Fim é preenchido automaticamente** ao selecionar o serviço ou alterar o Início, com base em `DURACAO_POR_SERVICO` (Corte feminino: 60 min, Corte masculino: 45 min, Barba: 30 min, Avaliação: 30 min, Manicure: 60 min). O campo Fim permanece editável.
 - Validação: todos obrigatórios exceto Observações; `horarioFim > horarioInicio` validado com mensagem específica.
 - Listas de Serviço e Profissional são mocks fixos — quando houver módulo de Equipe/Serviços no backend, devem vir de lá.
@@ -77,7 +78,11 @@ Painel financeiro mensal, **100% mockado** (estado local, sem backend). Dados in
 
 ### Modelo de dados
 
-Tipo único `Transacao` com campos: `id`, `descricao`, `tipo: "receita" | "despesa"`, `valor: number`, `vencimento: "DD/MM"`, `status: "em_dia" | "atrasado" | "pago"`.
+**`Transacao`**: `id`, `descricao`, `tipo: "receita" | "despesa"`, `valor: number`, `vencimento: "DD/MM"`, `status: "em_dia" | "atrasado" | "pago"`, `pagamentos?: Pagamento[]`.
+
+**`Pagamento`**: `id`, `valor: number`, `data: string (YYYY-MM-DD)`, `forma: FormaPagamento`.
+
+**`FormaPagamento`**: `"dinheiro" | "cartao" | "pix" | "cheque" | "ted"`.
 
 ### Cards de resumo
 
@@ -99,14 +104,23 @@ SVG puro responsivo com curva bezier suave e gradiente de preenchimento. Dados d
 
 ### Formulários de nova transação
 
-Botões "+ Nova receita" e "+ Nova despesa" no header abrem o mesmo componente `NovaTransacaoModal` com `tipo` diferente. Campos (todos obrigatórios):
-- **Descrição** — texto livre, largura total.
-- **Categoria** — Select. Receita: "Serviço / Produto / Outros". Despesa: "Custo fixo / Custo variável / Outros".
-- **Valor (R$)** — numérico, ao lado de Categoria (grid 2 colunas).
-- **Data** — date picker, ao lado de Status (grid 2 colunas).
-- **Status** — Select: "Pago / Pendente / Atrasado", padrão "Pendente". Itens salvos como "Pago" não aparecem nas listas de pendentes.
+Botões "+ Nova receita" e "+ Nova despesa" no header abrem o mesmo componente `NovaTransacaoModal` com `tipo` diferente.
 
-Ao salvar, a transação é adicionada ao array com o status escolhido; totais dos cards atualizam imediatamente.
+**Campos da nova receita** (todos obrigatórios exceto onde indicado):
+- **Cliente** — `ClienteSelect`: busca por nome ou telefone; permite criar novo cliente via mini-modal. O nome do cliente selecionado é salvo como `descricao` da transação.
+- **Categoria** — Select: "Serviço / Produto / Outros".
+- **Valor (R$)** — numérico, ao lado de Categoria (grid 2 colunas).
+- **Data** — date picker, largura total.
+
+**Campos da nova despesa** (todos obrigatórios exceto onde indicado):
+- **Descrição** — texto livre, largura total.
+- **Categoria** — Select: "Custo fixo / Custo variável / Outros".
+- **Valor (R$)** — numérico, ao lado de Categoria (grid 2 colunas).
+- **Data** — date picker, largura total.
+
+**Regra de status na criação**: o campo Status foi removido de ambos os formulários. Toda transação nova é criada com `status: "em_dia"`. O status só pode mudar para `"pago"` via registro de pagamentos no `DetalheTransacaoModal`.
+
+Ao salvar, a transação é adicionada ao array; totais dos cards atualizam imediatamente.
 
 ### Filtros nas listas de contas
 
@@ -122,17 +136,48 @@ O painel expandível oferece:
 
 Os filtros se combinam em cascata; a lista respeita `max-h-72` com `overflow-y-auto` para não crescer a página.
 
-### Detalhe e exclusão de transação (`DetalheTransacaoModal`)
+### Detalhe, pagamentos e exclusão de transação (`DetalheTransacaoModal`)
 
 Clicar em qualquer item de "Contas a receber" ou "Contas a pagar" abre o modal de detalhe:
 - **Cabeçalho colorido** (teal = receita, vermelho = despesa): ícone de tendência, tipo, badge de status, descrição e valor.
 - **Campos**: Vencimento e Categoria (com rótulo legível; omitida se não preenchida).
-- **Exclusão em dois passos**: botão "Excluir" (lixeira) → mensagem de confirmação → "Confirmar exclusão" remove o registro do estado local e fecha o modal. "Voltar" cancela a exclusão.
-- O estado de confirmação é resetado automaticamente ao trocar de transação selecionada.
+
+**Seção de pagamentos** (exibida para receitas e despesas):
+- **Barra de progresso** — aparece quando há algum pagamento registrado; exibe "R$ pago de R$ total" e barra teal proporcionalmente preenchida.
+- **Histórico** — lista pagamentos com data (formatada DD/MM/AAAA), badge de forma (ícone + label) e valor (`+ R$` em teal para receitas, `− R$` em vermelho para despesas). Scroll interno `max-h-36`.
+- **Formulário de registro** — visível enquanto `status !== "pago"`:
+  - Chips de forma de pagamento em 5 colunas: Dinheiro (`Banknote`), Cartão (`CreditCard`), Pix (`QrCode`), Cheque (`FileText`), TED (`ArrowLeftRight`). Chip ativo fica com borda/fundo teal.
+  - Campo **Valor** pré-preenchido com o saldo restante; Campo **Data** pré-preenchido com hoje.
+  - Validações: forma obrigatória; valor > 0 e ≤ saldo restante (com precisão de float `0.001`); data obrigatória.
+  - Botão "Confirmar recebimento" (receita) / "Confirmar pagamento" (despesa).
+- **Auto-marcação como "pago"**: quando `somaPagamentos >= valorTotal − 0.001`, o status muda para `"pago"`, o formulário some e o badge na lista atualiza.
+- O estado do formulário de pagamento é resetado ao trocar de transação (`useEffect([transacao?.id])`); o campo Valor é pré-preenchido com o saldo restante atualizado.
+
+**Exclusão em dois passos**: botão "Excluir" (lixeira) → mensagem de confirmação → "Confirmar exclusão" remove o registro do estado local e fecha o modal. "Voltar" cancela a exclusão. O estado de confirmação é resetado automaticamente ao trocar de transação selecionada.
+
+**Atualização reativa**: `DetalheTransacaoModal` recebe `transacao={transacaoExibida}` — derivado de `transacoes.find(t => t.id === selecionada.id)` — garantindo que o modal sempre reflita o estado mais recente após cada pagamento registrado sem precisar fechar e reabrir.
+
+## Estado compartilhado de clientes (`ClientesContext`)
+
+`src/contexts/ClientesContext.tsx` centraliza a lista de clientes, eliminando estado local duplicado que existia antes em `Clientes.tsx`.
+
+- **Tipos exportados**: `StatusAgendamento`, `AgendamentoHistorico`, `Cliente` (id, nome, telefone, avatarCor, agendamentos[]).
+- **`ClientesProvider`**: mantém `clientes[]` em `useState` com dados mock iniciais. Expõe `addCliente` (recebe `Omit<Cliente, "id">`, gera UUID, retorna o `Cliente` criado) e `deletarCliente` (filtra por id).
+- **Quem consome**: `Clientes.tsx` (listagem e exclusão), `ClienteSelect.tsx` (busca e criação rápida), indiretamente `NovoAgendamentoModal` e `Financeiro` via `ClienteSelect`.
+- **Retorno do `addCliente`**: retorna o objeto criado, permitindo que `ClienteSelect` auto-selecione o cliente recém-cadastrado sem precisar encontrá-lo na lista depois.
+
+## Módulo Clientes (`/clientes`)
+
+Lista de clientes cadastrados, **100% mockada** (estado em `ClientesContext`, sem backend). Agora é um consumer puro do contexto — não mantém estado próprio.
+
+- Exibição em grid de cards com avatar colorido (iniciais), nome, telefone e histórico de agendamentos.
+- Criação via modal (Nome + Telefone + cor de avatar automática).
+- Exclusão com confirmação de dois passos.
+- Clientes criados aqui aparecem imediatamente disponíveis em `NovoAgendamentoModal` e em "Nova receita" no Financeiro.
 
 ## Navegação / menu (Sidebar)
 
-O menu lateral (`Sidebar.tsx`) lista 6 seções: Dashboard, Atendimento, Agenda, Financeiro, Equipe, Configurações. Rotas implementadas: **Atendimento** (`/atendimento`), **Agenda** (`/agenda`) e **Financeiro** (`/financeiro`). As demais (Dashboard, Equipe, Configurações) aparecem no menu mas não têm rota correspondente em `App.tsx` (ver [roadmap.md](./roadmap.md)).
+O menu lateral (`Sidebar.tsx`) lista as seções do sistema. Rotas implementadas: **Atendimento** (`/atendimento`), **Agenda** (`/agenda`), **Clientes** (`/clientes`), **Financeiro** (`/financeiro`) e **Equipe** (`/equipe`).
 
 ## Pendências
 

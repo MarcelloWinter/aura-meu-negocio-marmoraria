@@ -2,6 +2,49 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
+## 2026-07-15 — (não commitado)
+**Agenda e Financeiro: vinculação de clientes e fluxo completo de pagamentos**
+
+### Contexto compartilhado de clientes (`ClientesContext`)
+- Criado `src/contexts/ClientesContext.tsx`: centraliza o estado da lista de clientes (antes isolado em `Clientes.tsx`). Exporta tipos `Cliente`, `AgendamentoHistorico`, `StatusAgendamento`, a constante `CORES_AVATAR_CLIENTES` e os mocks iniciais.
+- `ClientesProvider` gerencia `clientes[]`, `addCliente` (retorna o `Cliente` criado) e `deletarCliente`. Adicionado em `App.tsx` envolvendo toda a aplicação, dentro de `AuthProvider`.
+- `Clientes.tsx` refatorado para consumir `useClientes()` em vez de manter estado local próprio.
+
+### Componente compartilhado `ClienteSelect` (`src/components/ClienteSelect.tsx`)
+- Novo componente reutilizável: campo de busca com dropdown inline filtrando clientes por nome ou telefone; exibe avatar colorido + nome + telefone em cada opção.
+- Quando nenhum cliente corresponde à busca (ou a lista está vazia), exibe **"+ Novo cliente"** que abre `NovoClienteRapido` — mini-modal com campos Nome e Telefone. O cliente criado é adicionado ao contexto e automaticamente selecionado no campo.
+- Após seleção, exibe o card compacto do cliente com avatar, nome, telefone e botão × para desfazer.
+- Fechamento do dropdown ao clicar fora via `useRef` + listener `mousedown` no `document`.
+- Importado por `NovoAgendamentoModal` e `Financeiro`; componentes locais duplicados removidos de `NovoAgendamentoModal.tsx`.
+
+### Agenda: campo "Cliente" vinculado ao módulo Clientes
+- `NovoAgendamentoModal`: campo "Cliente" substituído de `Input` de texto livre para `ClienteSelect`. O nome do cliente selecionado popula o campo `nome` do `Evento`. Novo cliente criado via modal rápido aparece imediatamente na lista de Clientes (estado compartilhado via contexto).
+
+### Financeiro: campo "Cliente" em "Nova receita"
+- Campo "Descrição" do formulário de nova receita substituído por `ClienteSelect`. O nome do cliente selecionado é salvo como `descricao` da transação — compatível com listagem, filtros por busca e modal de detalhe.
+- Despesas mantêm o campo "Descrição" como texto livre (sem vínculo a cliente).
+
+### Financeiro: remoção do campo Status nos formulários
+- "Nova receita" e "Nova despesa": campo **Status** removido. Toda transação nova é criada com `status: "em_dia"`. O status só pode mudar via registro de pagamentos (receitas/despesas) no `DetalheTransacaoModal`.
+- Constante `STATUS_OPCOES`, estado `status` e `setStatus` removidos do `NovaTransacaoModal`.
+
+### Financeiro: registro de pagamentos com formas e histórico
+- Novo tipo `FormaPagamento: "dinheiro" | "cartao" | "pix" | "cheque" | "ted"`.
+- Novo tipo `Pagamento: { id, valor, data: string (YYYY-MM-DD), forma: FormaPagamento }`.
+- `Transacao` recebe campo opcional `pagamentos?: Pagamento[]`.
+- `DetalheTransacaoModal` ganha seção de pagamentos (presente em receitas **e** despesas), separada do rodapé de exclusão por um divisor:
+  - **Barra de progresso** — aparece quando `valorPago > 0`; exibe "Valor recebido / pago · R$ X de R$ Y" e barra teal com preenchimento proporcional animado.
+  - **Histórico de recebimentos/pagamentos** — lista cada entrada com data, badge de forma (ícone + label) e valor (`+ R$` teal para receitas, `− R$` vermelho para despesas). Scroll interno `max-h-36` quando há muitos registros.
+  - **Formulário de registro** — visível enquanto `status !== "pago"`:
+    - Chips de forma de pagamento em `grid-cols-5`: Dinheiro (`Banknote`), Cartão (`CreditCard`), Pix (`QrCode`), Cheque (`FileText`), TED (`ArrowLeftRight`). Chip selecionado fica com borda e fundo teal.
+    - Campo Valor pré-preenchido com o saldo restante; campo Data pré-preenchido com hoje (`hojeISO()`).
+    - Validação: forma obrigatória, valor > 0, valor ≤ saldo restante (`formatBRL(valorRestante)` na mensagem de erro), data obrigatória.
+  - **Marcação automática como "pago"**: quando `somaPagamentos >= valorTotal − 0.001`, `status` é atualizado para `"pago"`, o formulário desaparece e o badge na lista atualiza imediatamente.
+- Função `registrarPagamento(id, pag)` adicionada ao `Financeiro`; atualiza o array de pagamentos e recalcula o status.
+- `transacaoExibida` derivado de `transacoes.find(t => t.id === transacaoSelecionada.id)` garante que o modal sempre reflita o estado mais recente após cada registro de pagamento sem precisar re-selecionar o item na lista.
+
+---
+
 ## 2026-07-08 — (não commitado)
 **Financeiro: modal de detalhe e exclusão de transações**
 

@@ -1,6 +1,6 @@
 import {
+	BookUser,
 	Calendar,
-	LayoutDashboard,
 	MessageSquare,
 	Settings,
 	Users,
@@ -17,11 +17,6 @@ interface SidebarProps {
 
 const menu = [
 	{
-		label: "Dashboard",
-		path: "/dashboard",
-		icon: LayoutDashboard,
-	},
-	{
 		label: "Atendimento",
 		path: "/atendimento",
 		icon: MessageSquare,
@@ -30,6 +25,11 @@ const menu = [
 		label: "Agenda",
 		path: "/agenda",
 		icon: Calendar,
+	},
+	{
+		label: "Clientes",
+		path: "/clientes",
+		icon: BookUser,
 	},
 	{
 		label: "Financeiro",
