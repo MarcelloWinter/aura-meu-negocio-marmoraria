@@ -11,38 +11,13 @@ import type { Cliente } from "../../contexts/ClientesContext";
 
 import type { Evento, Recorrencia } from "./Agenda";
 
-const SERVICOS: SelectOption[] = [
-	{ label: "Corte feminino", value: "Corte feminino" },
-	{ label: "Corte masculino", value: "Corte masculino" },
-	{ label: "Barba", value: "Barba" },
-	{ label: "Avaliação", value: "Avaliação" },
-	{ label: "Manicure", value: "Manicure" },
-];
-
 const PROFISSIONAIS: SelectOption[] = [
 	{ label: "Júlia", value: "Júlia" },
 	{ label: "Rafa", value: "Rafa" },
 	{ label: "Você", value: "Você" },
 ];
 
-// Duração padrão de cada serviço em minutos
-const DURACAO_POR_SERVICO: Record<string, number> = {
-	"Corte feminino": 60,
-	"Corte masculino": 45,
-	Barba: 30,
-	Avaliação: 30,
-	Manicure: 60,
-};
 const DURACAO_PADRAO = 60;
-
-const COR_DOT_POR_SERVICO: Record<string, string> = {
-	"Corte feminino": "bg-blue-500",
-	"Corte masculino": "bg-indigo-500",
-	Barba: "bg-green-500",
-	Avaliação: "bg-cyan-500",
-	Manicure: "bg-pink-500",
-};
-const COR_DOT_PADRAO = "bg-purple-500";
 
 const COR_AVATAR_POR_PROFISSIONAL: Record<string, string> = {
 	Júlia: "bg-violet-100 text-violet-700",
@@ -51,14 +26,7 @@ const COR_AVATAR_POR_PROFISSIONAL: Record<string, string> = {
 };
 const COR_AVATAR_PADRAO = "bg-slate-100 text-slate-600";
 
-const CORES_POR_SERVICO: Record<string, string> = {
-	"Corte feminino": "bg-blue-100 border-blue-500",
-	"Corte masculino": "bg-indigo-100 border-indigo-500",
-	Barba: "bg-green-100 border-green-500",
-	Avaliação: "bg-cyan-100 border-cyan-500",
-	Manicure: "bg-pink-100 border-pink-500",
-};
-const COR_PADRAO = "bg-purple-100 border-purple-500";
+const COR_EVENTO_PADRAO = "bg-purple-100 border-purple-500";
 
 const OPCOES_RECORRENCIA: SelectOption[] = [
 	{ label: "Não repete", value: "nenhuma" },
@@ -100,17 +68,6 @@ function timeToMinutes(time: string): number {
 	return h * 60 + m;
 }
 
-function renderServico(option: SelectOption) {
-	return (
-		<>
-			<span
-				className={`h-2 w-2 shrink-0 rounded-full ${COR_DOT_POR_SERVICO[option.value] ?? COR_DOT_PADRAO}`}
-			/>
-			{option.label}
-		</>
-	);
-}
-
 function renderProfissional(option: SelectOption) {
 	const cor = COR_AVATAR_POR_PROFISSIONAL[option.value] ?? COR_AVATAR_PADRAO;
 	return (
@@ -129,7 +86,6 @@ function renderProfissional(option: SelectOption) {
 
 const ERROS_VAZIOS = {
 	cliente: "",
-	servico: "",
 	profissional: "",
 	data: "",
 	horarioInicio: "",
@@ -148,7 +104,6 @@ export function NovoAgendamentoModal({
 	onSave,
 }: NovoAgendamentoModalProps) {
 	const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
-	const [servico, setServico] = useState("");
 	const [profissional, setProfissional] = useState("");
 	const [data, setData] = useState("");
 	const [horarioInicio, setHorarioInicio] = useState("");
@@ -158,25 +113,18 @@ export function NovoAgendamentoModal({
 
 	const [errors, setErrors] = useState(ERROS_VAZIOS);
 
-	function recalcularFim(inicio: string, servicoAtual: string) {
+	function recalcularFim(inicio: string) {
 		if (!inicio) return;
-		const duracao = DURACAO_POR_SERVICO[servicoAtual] ?? DURACAO_PADRAO;
-		setHorarioFim(addMinutesToTime(inicio, duracao));
-	}
-
-	function handleServicoChange(value: string) {
-		setServico(value);
-		recalcularFim(horarioInicio, value);
+		setHorarioFim(addMinutesToTime(inicio, DURACAO_PADRAO));
 	}
 
 	function handleHorarioInicioChange(value: string) {
 		setHorarioInicio(value);
-		recalcularFim(value, servico);
+		recalcularFim(value);
 	}
 
 	function limparFormulario() {
 		setClienteSelecionado(null);
-		setServico("");
 		setProfissional("");
 		setData("");
 		setHorarioInicio("");
@@ -201,7 +149,6 @@ export function NovoAgendamentoModal({
 
 		const novosErros = {
 			cliente: clienteSelecionado ? "" : "Selecione ou cadastre um cliente.",
-			servico: servico ? "" : "Selecione o serviço.",
 			profissional: profissional ? "" : "Selecione o profissional.",
 			data: data ? "" : "Informe a data.",
 			horarioInicio: horarioInicio ? "" : "Informe o início.",
@@ -225,12 +172,11 @@ export function NovoAgendamentoModal({
 		onSave({
 			id: crypto.randomUUID(),
 			nome: clienteSelecionado!.nome,
-			servico,
 			profissional,
 			data: new Date(`${data}T00:00:00`),
 			hora: hInicio + mInicio / 60,
 			duracao: duracaoMinutos / 60,
-			color: CORES_POR_SERVICO[servico] ?? COR_PADRAO,
+			color: COR_EVENTO_PADRAO,
 			observacoes: observacoes.trim() || undefined,
 			recorrencia,
 		});
@@ -247,27 +193,15 @@ export function NovoAgendamentoModal({
 					error={errors.cliente}
 				/>
 
-				<div className="grid grid-cols-2 gap-4">
-					<Select
-						label="Serviço"
-						placeholder="Selecione"
-						value={servico}
-						onChange={handleServicoChange}
-						options={SERVICOS}
-						renderOption={renderServico}
-						error={errors.servico}
-					/>
-
-					<Select
-						label="Profissional"
-						placeholder="Selecione"
-						value={profissional}
-						onChange={setProfissional}
-						options={PROFISSIONAIS}
-						renderOption={renderProfissional}
-						error={errors.profissional}
-					/>
-				</div>
+				<Select
+					label="Profissional"
+					placeholder="Selecione"
+					value={profissional}
+					onChange={setProfissional}
+					options={PROFISSIONAIS}
+					renderOption={renderProfissional}
+					error={errors.profissional}
+				/>
 
 				<Input
 					label="Data"

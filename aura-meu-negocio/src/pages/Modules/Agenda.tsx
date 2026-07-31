@@ -34,7 +34,6 @@ import { FechaHorarioModal } from "./FechaHorarioModal";
 export type Evento = {
 	id: string;
 	nome: string;
-	servico: string;
 	profissional: string;
 	data: Date;
 	hora: number;
@@ -162,7 +161,6 @@ function eventosIniciais(): Evento[] {
 		{
 			id: "1",
 			nome: "Ana Costa",
-			servico: "Corte feminino",
 			profissional: "Júlia",
 			data: addDays(inicioSemanaAtual, 0),
 			hora: 9,
@@ -172,7 +170,6 @@ function eventosIniciais(): Evento[] {
 		{
 			id: "2",
 			nome: "Pedro Lima",
-			servico: "Barba",
 			profissional: "Rafa",
 			data: addDays(inicioSemanaAtual, 2),
 			hora: 10,
@@ -182,7 +179,6 @@ function eventosIniciais(): Evento[] {
 		{
 			id: "3",
 			nome: "Lucas A.",
-			servico: "Avaliação",
 			profissional: "Você",
 			data: addDays(inicioSemanaAtual, 4),
 			hora: 9,
@@ -260,7 +256,7 @@ function EventoCard({
 				{evento.nome}
 			</p>
 			{!compact && (
-				<p className="truncate leading-tight text-slate-600">{evento.servico}</p>
+				<p className="truncate leading-tight text-slate-600">{evento.profissional}</p>
 			)}
 		</div>
 	);
@@ -595,12 +591,12 @@ function DetalheEventoModal({
 				onClick={(e) => e.stopPropagation()}
 				className="w-full max-w-sm rounded-2xl bg-white shadow-lg"
 			>
-				{/* Cabeçalho colorido com serviço */}
+				{/* Cabeçalho colorido com o profissional */}
 				<div className={`flex items-center justify-between rounded-t-2xl border-l-4 px-5 py-4 ${evento.color}`}>
 					<div>
-						<p className="text-xs font-medium text-slate-500">Serviço</p>
+						<p className="text-xs font-medium text-slate-500">Profissional</p>
 						<p className="text-base font-semibold text-slate-800">
-							{evento.servico}
+							{evento.profissional}
 						</p>
 					</div>
 					<button
@@ -619,16 +615,6 @@ function DetalheEventoModal({
 						<div>
 							<p className="text-[11px] text-slate-400">Cliente</p>
 							<p className="text-sm font-medium text-slate-800">{evento.nome}</p>
-						</div>
-					</div>
-
-					<div className="flex items-center gap-3">
-						<AvatarProfissional nome={evento.profissional} small />
-						<div>
-							<p className="text-[11px] text-slate-400">Profissional</p>
-							<p className="text-sm font-medium text-slate-800">
-								{evento.profissional}
-							</p>
 						</div>
 					</div>
 
