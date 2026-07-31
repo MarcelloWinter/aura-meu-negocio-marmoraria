@@ -34,11 +34,10 @@ src/
 ├── App.css                  # Estilos remanescentes do template Vite (não utilizado nas páginas)
 ├── assets/                  # Vazio atualmente
 ├── components/               # Componentes compostos / específicos de layout e auth
-├── contexts/                 # SidebarContext (único contexto global hoje)
-├── hooks/                    # UseSidebar.tsx está vazio (hook real vive em SidebarContext.tsx)
+├── contexts/                 # AuthContext, ClientesContext, FinanceiroContext
 ├── pages/
 │   ├── Auth/                 # Login, ForgotPassword, VerifyCode, ResetPassword
-│   └── Modules/               # Service (Atendimento), Agenda
+│   └── Modules/               # Service (Atendimento), Agenda, Clientes, Vendas, Financeiro, Equipe
 ├── services/
 │   └── api.ts                 # Instância Axios única
 ├── styles/
@@ -58,27 +57,27 @@ src/
 /resetar-senha       → ResetPassword
 /atendimento         → Service (módulo Atendimento)
 /agenda              → Agenda (módulo Agenda)
+/clientes            → Clientes (módulo Clientes)
+/vendas              → Vendas (módulo Vendas, novo em 2026-07-30)
+/financeiro          → Financeiro (módulo Financeiro)
+/equipe              → Equipe (módulo Equipe)
 ```
 
+> A lista acima já reflete `App.tsx` na íntegra (confirmado em 2026-07-30). O restante desta seção — abaixo da nota sobre rotas protegidas — ainda descreve o estado de 2026-06-25 e não foi reauditado nesta rodada; ver Pendências.
+
 - Roteamento client-side via `BrowserRouter`/`Routes`/`Route` do `react-router-dom` v6.
-- **Não existem rotas protegidas** (`ProtectedRoute`/`PrivateRoute`). Qualquer rota, incluindo `/atendimento` e `/agenda`, é acessível diretamente pela URL sem autenticação prévia.
-- O `Sidebar.tsx` (usado dentro de `DashboardLayout`) referencia rotas que **não existem em `App.tsx`**: `/dashboard`, `/financeiro`, `/equipe`, `/configuracoes`. Clicar nesses itens de menu hoje não leva a nenhuma página implementada.
+- **Não existem rotas protegidas** (`ProtectedRoute`/`PrivateRoute`). Qualquer rota é acessível diretamente pela URL sem autenticação prévia.
+- `/configuracoes` (presente no menu da Sidebar) continua sem página correspondente em `App.tsx`.
 
 ## Estado global
 
-Único contexto existente: `src/contexts/SidebarContext.tsx`.
+Contextos existentes (todos em `src/contexts/`), providos em `App.tsx` na ordem `AuthProvider > ClientesProvider > FinanceiroProvider > BrowserRouter`:
 
-```ts
-interface SidebarContextData {
-  isCollapsed: boolean;
-  toggleSidebar: () => void;
-}
-```
+- **`ClientesContext`** — lista de clientes (`clientes[]`, `addCliente`, `deletarCliente`). Consumido por `Clientes.tsx`, `ClienteSelect` (e, através dele, por `NovoAgendamentoModal`, "Nova receita" no Financeiro e `NovaVendaModal`).
+- **`FinanceiroContext`** (novo em 2026-07-30) — transações financeiras (`transacoes[]`, `addTransacao`, `deletarTransacao`, `registrarPagamento`). Consumido por `Financeiro.tsx` e por `Vendas.tsx` (gera uma receita automaticamente ao aprovar um orçamento — ver [business-rules.md](./business-rules.md)).
+- **`AuthContext`** — sessão do usuário (login/logout), criado em 2026-06-25.
 
-- Provido por `SidebarProvider`, que envolve toda a árvore em `App.tsx`.
-- Consumido pelo hook `useSidebar()`.
-- **Atenção**: existe uma duplicação de implementação de sidebar (ver [coding-standards.md](./coding-standards.md) e [ui.md](./ui.md)) — o componente `Sidebar.tsx` realmente usado em `DashboardLayout.tsx` **não usa este contexto**; ele recebe `isOpen`/`onClose` via props e tem sua própria cópia hardcoded da lista de menu. O par `SidebarItem.tsx` + `menuItems.ts`, que sim usam `useSidebar()`, não é referenciado por nenhuma página atualmente.
-- Não há contexto de autenticação, usuário logado, tema, ou dados de negócio (clientes, atendimentos, agendamentos) — esses dados hoje vivem como arrays locais dentro dos próprios componentes de página.
+Não há mais `SidebarContext` — foi removido em 2026-06-25 junto com o `SidebarItem.tsx`/`menuItems.ts` que o consumiam (nenhuma página os referenciava; ver "Atualizações (2026-06-25)" abaixo). O `Sidebar.tsx` atual (usado em `DashboardLayout.tsx`) não usa Context algum: recebe `isOpen`/`onClose` via props e tem sua própria lista de menu hardcoded (`const menu = [...]`).
 
 ## Autenticação no frontend
 
@@ -118,6 +117,8 @@ Ver detalhamento de regras em [business-rules.md](./business-rules.md). Resumo t
 
 - **Service.tsx** (`/atendimento`): array local `colunas` com 6 estágios e clientes mockados; renderizado em layout horizontal com scroll (`overflow-x-auto`), sem drag-and-drop.
 - **Agenda.tsx** (`/agenda`): array local `eventos` mockado; grid semanal (8 colunas: 1 de horas + 7 dias) construído com `date-fns` (`startOfWeek`, `addDays`, `addWeeks`, `subWeeks`); eventos posicionados com `position: absolute` calculado a partir de `top`/`height` em função de `HOUR_HEIGHT = 64`.
+- **Vendas.tsx** (`/vendas`, novo em 2026-07-30): pedidos por item com pipeline de status em kanban (4 colunas, mesmo padrão visual do `Service.tsx`); estado local `vendas[]`, mas grava receitas no `FinanceiroContext` compartilhado ao aprovar um orçamento. Detalhes completos em [business-rules.md](./business-rules.md).
+- **Clientes.tsx** (`/clientes`), **Financeiro.tsx** (`/financeiro`) e **Equipe.tsx** (`/equipe`): existem e estão roteados, mas não foram reauditados tecnicamente para esta seção desde 2026-06-25 (ver Pendências) — para Clientes e Financeiro, ver o detalhamento funcional já mantido em [business-rules.md](./business-rules.md), que está atualizado.
 
 ## Build e tooling
 
@@ -139,5 +140,6 @@ Resolvido como parte do primeiro lote de execução do [ARCHITECTURE_PLAN.md](./
 ## Pendências
 
 - Migrar os imports relativos (`../../components/...`) para o alias `@/` (configurado, mas não adotado ainda).
-- Confirmar se as rotas `/dashboard`, `/financeiro`, `/equipe`, `/configuracoes` (presentes no menu da Sidebar) estão no roadmap de curto prazo.
+- Confirmar se a rota `/dashboard` (presente no menu da Sidebar, sem página) e `/configuracoes` estão no roadmap de curto prazo.
 - Implementar de fato as rotas protegidas/guard de autenticação no frontend (o `AuthContext` já existe como fundação, mas nenhuma rota ainda redireciona se não houver sessão).
+- **Este arquivo não recebeu uma reauditoria completa desde 2026-06-25** — só foi corrigido pontualmente em 2026-07-30 (roteamento, contextos e a nova página Vendas) durante a sessão que criou o módulo Vendas. As seções sobre build/tooling e páginas de Auth abaixo ainda não foram reconferidas contra o código atual; `business-rules.md` e `changelog.md` são as fontes mais atualizadas para Clientes/Financeiro/Vendas/Agenda.

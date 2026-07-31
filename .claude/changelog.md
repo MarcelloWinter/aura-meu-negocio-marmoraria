@@ -2,6 +2,34 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
+## 2026-07-30 — (não commitado)
+**Módulo Vendas (`/vendas`): pedidos por item, pipeline de status e integração com o Financeiro**
+
+### Novo `FinanceiroContext` (`src/contexts/FinanceiroContext.tsx`)
+- Estado de `transacoes[]` (antes local em `Financeiro.tsx`) extraído para um contexto próprio, seguindo o mesmo padrão do `ClientesContext`. Exporta os tipos `TipoTransacao`, `StatusConta`, `FormaPagamento`, `Pagamento`, `Transacao` e os mocks iniciais (mesmos R$ 18.420 em receitas / R$ 7.150 em despesas de antes).
+- `FinanceiroProvider` expõe `transacoes`, `addTransacao` (retorna a `Transacao` criada, mesmo padrão de `addCliente`), `deletarTransacao` e `registrarPagamento`. Adicionado em `App.tsx`, entre `ClientesProvider` e `BrowserRouter`.
+- `Financeiro.tsx` refatorado para consumir `useFinanceiro()` em vez de manter o array em `useState` próprio — nenhuma mudança de comportamento visual; existe agora para permitir que outros módulos (Vendas) leiam/gravem no mesmo estado financeiro.
+
+### Módulo Vendas (`src/pages/Modules/Vendas.tsx`, novo)
+- Pedidos com **itens** (`ItemVenda`: descrição, quantidade, valor unitário) em vez de um valor único — cada venda (`Venda`) tem `cliente` (nome, vinculado via `ClienteSelect`), `itens[]`, `data`, `status` e `observacoes?` opcional. Total é sempre derivado somando `quantidade × valorUnitario` de cada item.
+- **Pipeline de status** em 4 etapas fixas, exibido como quadro kanban (mesmo padrão visual do `Service.tsx`/Atendimento): `orcamento` → `aprovado` → `producao` → `entregue`. Cada coluna mostra a contagem de pedidos; cards mostram cliente, total, nº de itens e data.
+- 3 cards de resumo no topo (mesmo padrão do Financeiro): **Em orçamento**, **Em carteira** (aprovado + em produção) e **Entregue**, cada um somando o total das vendas no respectivo grupo de status.
+- **`NovaVendaModal`**: `ClienteSelect` + lista dinâmica de itens (adicionar/remover linhas, cada linha com descrição/quantidade/valor unitário e subtotal calculado ao vivo), Data e Observações. Toda venda nova começa em `status: "orcamento"`. Validação manual por item (descrição obrigatória, quantidade e valor > 0) e exige ao menos 1 item.
+- **`DetalheVendaModal`**: lista os itens do pedido, mostra observações quando houver, e expõe um botão para avançar para a próxima etapa do pipeline (rótulo contextual: "Aprovar orçamento" / "Iniciar produção" / "Marcar como entregue"). Etapas não retrocedem pela UI. "Cancelar venda" remove o pedido com confirmação em dois passos (mesmo padrão de exclusão do Financeiro/Agenda).
+- **Integração com o Financeiro**: ao avançar de `orcamento` para `aprovado` pela primeira vez, é criada automaticamente uma `Transacao` do tipo `receita` no `FinanceiroContext` (`categoria: "venda"`, descrição = nome do cliente, valor = total do pedido, vencimento = data do pedido), e o `id` da transação fica salvo em `venda.transacaoId`. Cancelar uma venda que já tem `transacaoId` também remove a receita correspondente do Financeiro (`deletarTransacao`). Adicionada a categoria `"venda"` → `"Venda"` em `LABEL_CATEGORIA` (`Financeiro.tsx`) para exibir esse rótulo corretamente no modal de detalhe de transação.
+- Rota `/vendas` adicionada em `App.tsx`; item **Vendas** (ícone `ShoppingCart`) adicionado à Sidebar entre Clientes e Financeiro.
+- Validado rodando a aplicação (Edge headless + `puppeteer-core`, já que não havia `chromium-cli`/Playwright disponíveis no ambiente): criação de venda com múltiplos itens, total calculado corretamente, aprovação de orçamento gerando a receita, e confirmação de que o total de "Entradas" no Financeiro refletiu o valor somado (R$ 18.420 → R$ 19.420 após aprovar um pedido de R$ 1.000) — navegação client-side entre módulos preservando o estado compartilhado. Sem erros de console.
+
+## 2026-07-30 — `1cae5e2`
+**Agenda: remoção do campo Serviço do formulário de novo agendamento**
+
+- `NovoAgendamentoModal`: campo **Serviço** (Select com lista fixa de serviços e ponto colorido) removido do formulário, a pedido do usuário. Removidas junto as constantes que só existiam para esse campo: `SERVICOS`, `DURACAO_POR_SERVICO`, `COR_DOT_POR_SERVICO`/`COR_DOT_PADRAO`, `CORES_POR_SERVICO`/`COR_PADRAO` (consolidada em `COR_EVENTO_PADRAO`, cor fixa para todo evento novo) e a função `renderServico`.
+- Duração do evento passou a usar sempre `DURACAO_PADRAO` (60 min) ao preencher automaticamente o campo **Fim** a partir do **Início** — antes variava por serviço selecionado. O campo Fim continua editável manualmente.
+- Tipo `Evento` (`Agenda.tsx`) perdeu o campo `servico: string`. Mocks iniciais (`eventosIniciais`) atualizados.
+- `EventoCard` (card do evento no grid Dia/Semana) passou a exibir o **profissional** abaixo do nome do cliente, no lugar do serviço.
+- `DetalheEventoModal`: cabeçalho colorido, que mostrava "Serviço" + valor, passou a mostrar **Profissional**; a linha "Profissional" que existia mais abaixo no corpo do modal foi removida (ficaria duplicada com o cabeçalho).
+- `tsc -b` e `npm run lint` validados sem novos erros. Commitado e enviado para `origin/main`.
+
 ## 2026-07-15 — (não commitado)
 **Agenda e Financeiro: vinculação de clientes e fluxo completo de pagamentos**
 

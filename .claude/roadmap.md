@@ -8,13 +8,15 @@ Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota 
 
 - [ ] **Dashboard** (`/dashboard`) — item de menu existe, página não.
 - [x] **Financeiro** (`/financeiro`) — implementado em 2026-07-04 (mockado, sem backend).
+- [x] **Vendas** (`/vendas`) — implementado em 2026-07-30 (mockado, sem backend; ver [business-rules.md](./business-rules.md)).
 - [ ] **Equipe** (`/equipe`) — item de menu existe, página não.
 - [ ] **Configurações** (`/configuracoes`) — idem.
 
 ## Funcionalidades parcialmente implementadas (mock-only)
 
 - [ ] **Atendimento** — hoje é um Kanban estático com dados hardcoded. Para virar funcionalidade real, falta: endpoint(s) de backend para listar/mover atendimentos entre estágios, persistência em banco, e provavelmente drag-and-drop ou ação explícita de mudança de estágio na UI.
-- [~] **Agenda** — em 2026-06-30, recebeu toggle de views (Dia/Semana/Mês), botão "Hoje" implementado, bloqueio de horários com recorrência (`FechaHorarioModal`), e formulário de agendamento aprimorado (Início/Fim com duração automática por serviço, selects ricos). Em 2026-07-02, corrigido layout de eventos sobrepostos nas views Dia/Semana (agora exibidos lado a lado com algoritmo de escalonamento de intervalos). Falta: endpoints reais de CRUD de agendamentos e bloqueios, persistência, e integração das listas de serviços/profissionais com o backend.
+- [~] **Agenda** — em 2026-06-30, recebeu toggle de views (Dia/Semana/Mês), botão "Hoje" implementado, bloqueio de horários com recorrência (`FechaHorarioModal`), e formulário de agendamento aprimorado (Início/Fim com duração automática por serviço, selects ricos). Em 2026-07-02, corrigido layout de eventos sobrepostos nas views Dia/Semana (agora exibidos lado a lado com algoritmo de escalonamento de intervalos). Em 2026-07-30, campo Serviço removido do formulário (duração passou a ser sempre 60 min fixos). Falta: endpoints reais de CRUD de agendamentos e bloqueios, persistência, e integração da lista de profissionais com o backend.
+- [~] **Vendas** — pipeline de status (orçamento/aprovado/produção/entregue) e geração automática de receita no Financeiro ao aprovar já funcionam sobre estado local. Falta: endpoints de backend para CRUD de vendas, persistência, e decidir se a integração com o Financeiro deve virar uma chamada de API única (hoje são dois `useState`/contexts client-side que só coincidem por estarem na mesma árvore React).
 
 ## Segurança e infraestrutura — bloqueadores antes de expor mais módulos
 
@@ -39,6 +41,7 @@ Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota 
 ## Possíveis próximos módulos de negócio (inferência a partir do menu e do nome do produto)
 
 - ~~Financeiro (cobrança, pagamentos, possivelmente ligado ao estágio "Pagamento" do Atendimento).~~ *(implementado em 2026-07-04 — mockado)*
+- ~~Vendas (pedidos por item, ligados a Clientes e Financeiro).~~ *(implementado em 2026-07-30 — mockado, ver [business-rules.md](./business-rules.md))*
 - Equipe (cadastro de profissionais — já referenciados como texto livre na Agenda: "Júlia", "Rafa", "Você").
 - Configurações (dados da empresa, hoje hardcoded como "Marmoraria Decore Granitos" no `Header`).
 - Possível automação/IA no funil de atendimento, dado o uso de n8n e o domínio `aura-ia.cloud`.

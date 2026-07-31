@@ -40,7 +40,7 @@ Estes pontos aparecem detalhados nos arquivos específicos, mas merecem destaque
 
 1. **Não há proteção de rotas no frontend** — `/atendimento` e `/agenda` são acessíveis sem login. Ver [architecture.md](./architecture.md) e [roadmap.md](./roadmap.md). *(Fundação para resolver isso já existe: `AuthContext` foi criado em 2026-06-25 — ver Etapa 8 do [ARCHITECTURE_PLAN.md](./ARCHITECTURE_PLAN.md). O guard de rota ainda não foi aplicado.)*
 2. **O middleware de autenticação do backend está vazio** (`src/middlewares/auth.middleware.ts`) — nenhuma rota valida o JWT atualmente. Ver [backend.md](./backend.md). Ainda não foi tocado nesta primeira rodada de execução (era escopo de backend, fora do lote "fundações sem mudar comportamento" executado em 2026-06-25).
-3. **Os módulos de Atendimento e Agenda usam dados 100% mockados** (hardcoded no componente), sem integração com o backend ainda. Ver [business-rules.md](./business-rules.md).
+3. **Todos os módulos de negócio usam dados 100% mockados** (Atendimento, Agenda, Clientes, Financeiro, Vendas), sem integração com o backend ainda. Desde 2026-07-30, Financeiro e Vendas compartilham estado via `FinanceiroContext` (aprovar uma venda gera uma receita no Financeiro), mas isso é só client-side (React Context) — não há persistência real. Ver [business-rules.md](./business-rules.md).
 4. ~~Há um `package.json` na raiz do repositório...~~ **Resolvido em 2026-06-25**: investigado e corrigido. O `package.json`/`node_modules` da raiz não era resquício morto — o frontend dependia silenciosamente dele (Node resolvia `axios`, `tailwindcss` e `@tailwindcss/vite` subindo até `node_modules` da raiz, porque esses pacotes nunca estiveram declarados em `aura-meu-negocio/package.json`). As 3 dependências foram declaradas e instaladas localmente em `aura-meu-negocio/`, e o `package.json`/`package-lock.json`/`node_modules` da raiz do repositório foram removidos (build validado sem eles).
 
 ## Execução do plano arquitetural
@@ -59,6 +59,12 @@ Em 2026-06-25 foi executado o primeiro lote do plano de migração ([ARCHITECTUR
 - Build de produção (`npm run build`), `tsc -b`, `npm run lint` e um smoke test do `npm run dev` foram validados — nenhuma mudança visual ou de comportamento.
 
 `package.json`/`node_modules` da raiz do repositório foram removidos (passo 6 concluído). Ainda **não executado** desse lote: a adoção do alias `@/` nos imports existentes (passo 2 só configurou a capacidade, não migrou nenhum arquivo).
+
+## Atualização (2026-07-30)
+
+- **Agenda**: campo "Serviço" removido do formulário de novo agendamento (a pedido do usuário) — duração passou a ser sempre 60 min fixos. Commitado e enviado para `origin/main` (`1cae5e2`).
+- **Novo módulo Vendas** (`/vendas`): pedidos por item (não valor único), com pipeline de status em kanban (Orçamento → Aprovado → Em produção → Entregue) e geração automática de receita no Financeiro ao aprovar um orçamento. Estado do Financeiro foi extraído para um novo `FinanceiroContext` (mesmo padrão do `ClientesContext`) para viabilizar essa integração. Ainda não commitado.
+- Detalhes técnicos completos em [business-rules.md](./business-rules.md) (seção "Módulo Vendas") e [changelog.md](./changelog.md).
 
 ## Pendências gerais
 
