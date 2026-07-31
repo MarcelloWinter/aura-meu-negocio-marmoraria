@@ -3,6 +3,7 @@ import {
 	Calendar,
 	MessageSquare,
 	Settings,
+	ShoppingCart,
 	Users,
 	Wallet,
 } from "lucide-react";
@@ -30,6 +31,11 @@ const menu = [
 		label: "Clientes",
 		path: "/clientes",
 		icon: BookUser,
+	},
+	{
+		label: "Vendas",
+		path: "/vendas",
+		icon: ShoppingCart,
 	},
 	{
 		label: "Financeiro",

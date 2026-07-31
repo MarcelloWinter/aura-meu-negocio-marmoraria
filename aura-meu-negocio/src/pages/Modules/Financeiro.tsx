@@ -10,31 +10,8 @@ import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
 import { ClienteSelect } from "../../components/ClienteSelect";
 import type { Cliente } from "../../contexts/ClientesContext";
-
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-
-type TipoTransacao = "receita" | "despesa";
-type StatusConta = "em_dia" | "atrasado" | "pago";
-
-type FormaPagamento = "dinheiro" | "cartao" | "pix" | "cheque" | "ted";
-
-type Pagamento = {
-	id: string;
-	valor: number;
-	data: string; // YYYY-MM-DD
-	forma: FormaPagamento;
-};
-
-type Transacao = {
-	id: string;
-	descricao: string;
-	tipo: TipoTransacao;
-	categoria?: string;
-	valor: number;
-	vencimento: string; // "DD/MM"
-	status: StatusConta;
-	pagamentos?: Pagamento[];
-};
+import { useFinanceiro } from "../../contexts/FinanceiroContext";
+import type { TipoTransacao, StatusConta, FormaPagamento, Pagamento, Transacao } from "../../contexts/FinanceiroContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -72,35 +49,6 @@ const FORMAS_PAGAMENTO: { value: FormaPagamento; label: string; Icon: React.Elem
 	{ value: "pix",      label: "Pix",       Icon: QrCode         },
 	{ value: "cheque",   label: "Cheque",    Icon: FileText       },
 	{ value: "ted",      label: "TED",       Icon: ArrowLeftRight },
-];
-
-// ─── Dados mockados ───────────────────────────────────────────────────────────
-
-const MOCK_TRANSACOES: Transacao[] = [
-	// Receitas pagas (7 clientes, totalizam R$ 17.150 já recebidos)
-	{ id: "r1", descricao: "Ana C.", tipo: "receita", valor: 1800, vencimento: "03/07", status: "pago" },
-	{ id: "r2", descricao: "Carlos R.", tipo: "receita", valor: 2400, vencimento: "05/07", status: "pago" },
-	{ id: "r3", descricao: "Julia M.", tipo: "receita", valor: 1600, vencimento: "06/07", status: "pago" },
-	{ id: "r4", descricao: "Fernanda S.", tipo: "receita", valor: 900, vencimento: "08/07", status: "pago" },
-	{ id: "r5", descricao: "Roberto K.", tipo: "receita", valor: 3200, vencimento: "10/07", status: "pago" },
-	{ id: "r6", descricao: "Alice B.", tipo: "receita", valor: 2800, vencimento: "15/07", status: "pago" },
-	{ id: "r7", descricao: "Rodrigo F.", tipo: "receita", valor: 1400, vencimento: "18/07", status: "pago" },
-	{ id: "r8", descricao: "Patricia N.", tipo: "receita", valor: 1800, vencimento: "20/07", status: "pago" },
-	{ id: "r9", descricao: "Mariana A.", tipo: "receita", valor: 1250, vencimento: "25/07", status: "pago" },
-	// Receitas pendentes (somam R$ 1.270 restantes → total = R$ 18.420)
-	{ id: "r10", descricao: "Marina L.", tipo: "receita", valor: 320, vencimento: "10/07", status: "em_dia" },
-	{ id: "r11", descricao: "Pedro Lima", tipo: "receita", valor: 80, vencimento: "12/07", status: "em_dia" },
-	{ id: "r12", descricao: "Beatriz S.", tipo: "receita", valor: 150, vencimento: "05/07", status: "atrasado" },
-	{ id: "r13", descricao: "Lucas M.", tipo: "receita", valor: 240, vencimento: "18/07", status: "em_dia" },
-	{ id: "r14", descricao: "Gustavo L.", tipo: "receita", valor: 480, vencimento: "22/07", status: "em_dia" },
-	// Despesas pagas (somam R$ 3.450)
-	{ id: "d1", descricao: "Salários", tipo: "despesa", valor: 3130, vencimento: "01/07", status: "pago" },
-	{ id: "d2", descricao: "Internet", tipo: "despesa", valor: 120, vencimento: "05/07", status: "pago" },
-	{ id: "d3", descricao: "Água", tipo: "despesa", valor: 200, vencimento: "08/07", status: "pago" },
-	// Despesas pendentes (somam R$ 3.700 → total despesas = R$ 7.150)
-	{ id: "d4", descricao: "Aluguel", tipo: "despesa", valor: 2400, vencimento: "10/07", status: "em_dia" },
-	{ id: "d5", descricao: "Energia", tipo: "despesa", valor: 380, vencimento: "15/07", status: "em_dia" },
-	{ id: "d6", descricao: "Produtos beleza", tipo: "despesa", valor: 920, vencimento: "20/07", status: "em_dia" },
 ];
 
 // Saldo diário simulado para julho de 2026
@@ -364,6 +312,7 @@ function StatusBadge({ status }: { status: StatusConta }) {
 const LABEL_CATEGORIA: Record<string, string> = {
 	servico: "Serviço",
 	produto: "Produto",
+	venda: "Venda",
 	outros: "Outros",
 	custo_fixo: "Custo fixo",
 	custo_variavel: "Custo variável",
@@ -1029,12 +978,12 @@ function NovaTransacaoModal({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function Financeiro() {
-	const [transacoes, setTransacoes] = useState<Transacao[]>(MOCK_TRANSACOES);
+	const { transacoes, addTransacao, deletarTransacao: deletarTransacaoCtx, registrarPagamento } = useFinanceiro();
 	const [modalAberto, setModalAberto] = useState<TipoTransacao | null>(null);
 	const [transacaoSelecionada, setTransacaoSelecionada] = useState<Transacao | null>(null);
 
 	function deletarTransacao(id: string) {
-		setTransacoes((prev) => prev.filter((t) => t.id !== id));
+		deletarTransacaoCtx(id);
 		setTransacaoSelecionada(null);
 	}
 
@@ -1057,20 +1006,8 @@ export function Financeiro() {
 		: null;
 
 
-	function registrarPagamento(id: string, pag: Omit<Pagamento, "id">) {
-		setTransacoes((prev) =>
-			prev.map((t) => {
-				if (t.id !== id) return t;
-				const pagamentos = [...(t.pagamentos ?? []), { id: crypto.randomUUID(), ...pag }];
-				const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0);
-				const status: StatusConta = totalPago >= t.valor - 0.001 ? "pago" : t.status;
-				return { ...t, pagamentos, status };
-			}),
-		);
-	}
-
-	function addTransacao(dados: Omit<Transacao, "id">) {
-		setTransacoes((prev) => [...prev, { id: crypto.randomUUID(), ...dados }]);
+	function handleSalvarTransacao(dados: Omit<Transacao, "id">) {
+		addTransacao(dados);
 		setModalAberto(null);
 	}
 
@@ -1216,7 +1153,7 @@ export function Financeiro() {
 				tipo={modalAberto ?? "receita"}
 				isOpen={modalAberto !== null}
 				onClose={() => setModalAberto(null)}
-				onSave={addTransacao}
+				onSave={handleSalvarTransacao}
 			/>
 		</DashboardLayout>
 	);
