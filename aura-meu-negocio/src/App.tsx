@@ -9,6 +9,7 @@ import { Agenda } from "./pages/Modules/Agenda";
 import { Vendas } from "./pages/Modules/Vendas";
 import { Financeiro } from "./pages/Modules/Financeiro";
 import { Equipe } from "./pages/Modules/Equipe";
+import { Configuracoes } from "./pages/Modules/Configuracoes";
 import { Clientes } from "./pages/Modules/Clientes";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ClientesProvider } from "./contexts/ClientesContext";
@@ -31,6 +32,7 @@ export function App() {
 					<Route path="/vendas" element={<Vendas />} />
 					<Route path="/financeiro" element={<Financeiro />} />
 					<Route path="/equipe" element={<Equipe />} />
+					<Route path="/configuracoes" element={<Configuracoes />} />
 				</Routes>
 			</BrowserRouter>
 			</FinanceiroProvider>
