@@ -1,4 +1,5 @@
-import { MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ChevronRight, MessageCircle } from "lucide-react";
 
 import { DashboardLayout } from "../../components/DashboardLayout";
 
@@ -157,19 +158,30 @@ const COLUNAS_INICIAIS: Coluna[] = [
 // ─── Card de atendimento ──────────────────────────────────────────────────────
 
 function AtendimentoCard({ atendimento }: { atendimento: Atendimento }) {
+	const navigate = useNavigate();
+
+	function verCliente() {
+		navigate(`/clientes?nome=${encodeURIComponent(atendimento.nome)}`);
+	}
+
 	return (
-		<div className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
-			<div className="flex items-center gap-3">
+		<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+			<button
+				type="button"
+				onClick={verCliente}
+				className="group flex w-full items-center gap-3 text-left"
+			>
 				<div
 					className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${atendimento.avatarCor} text-xs font-bold text-white`}
 				>
 					{iniciais(atendimento.nome)}
 				</div>
-				<p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">
+				<p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 group-hover:text-blue-600 group-hover:underline">
 					{atendimento.nome}
 				</p>
+				<ChevronRight size={13} className="shrink-0 text-slate-300 transition group-hover:text-blue-500" />
 				<span className="shrink-0 text-xs text-slate-400">{atendimento.hora}</span>
-			</div>
+			</button>
 			<p className="mt-2.5 line-clamp-2 text-sm leading-relaxed text-slate-500">
 				{atendimento.mensagem}
 			</p>

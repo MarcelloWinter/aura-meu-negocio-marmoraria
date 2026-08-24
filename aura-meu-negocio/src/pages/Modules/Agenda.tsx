@@ -4,6 +4,7 @@ import {
 	Lock,
 	UserRound,
 	ChevronDown,
+	ChevronRight,
 	CalendarDays,
 	Clock,
 	RefreshCw,
@@ -24,6 +25,7 @@ import {
 	isSameMonth,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 import { DashboardLayout } from "../../components/DashboardLayout";
 import { NovoAgendamentoModal } from "./NovoAgendamentoModal";
@@ -34,6 +36,7 @@ import { FechaHorarioModal } from "./FechaHorarioModal";
 export type Evento = {
 	id: string;
 	nome: string;
+	clienteId?: string;
 	profissional: string;
 	data: Date;
 	hora: number;
@@ -563,12 +566,20 @@ function DetalheEventoModal({
 	onCancelar: (id: string) => void;
 }) {
 	const [confirmando, setConfirmando] = useState(false);
+	const navigate = useNavigate();
 
 	useEffect(() => {
 		setConfirmando(false);
 	}, [evento]);
 
 	if (!evento) return null;
+
+	function verCliente() {
+		const params = evento!.clienteId
+			? `clienteId=${encodeURIComponent(evento!.clienteId)}`
+			: `nome=${encodeURIComponent(evento!.nome)}`;
+		navigate(`/clientes?${params}`);
+	}
 
 	const horaInicio = formatHora(evento.hora);
 	const horaFim = formatHora(evento.hora + evento.duracao);
@@ -610,13 +621,20 @@ function DetalheEventoModal({
 
 				{/* Campos */}
 				<div className="space-y-3 px-5 py-5">
-					<div className="flex items-center gap-3">
+					<button
+						type="button"
+						onClick={verCliente}
+						className="group flex w-full items-center gap-3 rounded-xl px-1 py-1 text-left transition hover:bg-slate-50"
+					>
 						<UserRound size={15} className="shrink-0 text-slate-400" />
-						<div>
+						<div className="min-w-0 flex-1">
 							<p className="text-[11px] text-slate-400">Cliente</p>
-							<p className="text-sm font-medium text-slate-800">{evento.nome}</p>
+							<p className="truncate text-sm font-medium text-blue-600 group-hover:underline">
+								{evento.nome}
+							</p>
 						</div>
-					</div>
+						<ChevronRight size={14} className="shrink-0 text-slate-300" />
+					</button>
 
 					<div className="flex items-center gap-3">
 						<CalendarDays size={15} className="shrink-0 text-slate-400" />

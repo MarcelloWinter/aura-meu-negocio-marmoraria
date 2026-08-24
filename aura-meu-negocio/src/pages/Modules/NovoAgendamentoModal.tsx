@@ -172,6 +172,7 @@ export function NovoAgendamentoModal({
 		onSave({
 			id: crypto.randomUUID(),
 			nome: clienteSelecionado!.nome,
+			clienteId: clienteSelecionado!.id,
 			profissional,
 			data: new Date(`${data}T00:00:00`),
 			hora: hInicio + mInicio / 60,

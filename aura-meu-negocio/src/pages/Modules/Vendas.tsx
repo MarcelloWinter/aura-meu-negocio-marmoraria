@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
 	Plus,
 	X,
 	Trash2,
 	ArrowRight,
+	ChevronRight,
 	Package,
 	Wallet,
 	ShoppingCart,
@@ -32,6 +34,7 @@ export type ItemVenda = {
 export type Venda = {
 	id: string;
 	cliente: string;
+	clienteId?: string;
 	itens: ItemVenda[];
 	data: string; // YYYY-MM-DD
 	status: StatusVenda;
@@ -302,6 +305,7 @@ function NovaVendaModal({
 		onSave({
 			id: crypto.randomUUID(),
 			cliente: clienteSelecionado!.nome,
+			clienteId: clienteSelecionado!.id,
 			itens: itens.map((it) => ({
 				id: it.id,
 				descricao: it.descricao.trim(),
@@ -435,6 +439,7 @@ function DetalheVendaModal({
 	onDeletar: (venda: Venda) => void;
 }) {
 	const [confirmando, setConfirmando] = useState(false);
+	const navigate = useNavigate();
 
 	if (!venda) return null;
 
@@ -448,14 +453,26 @@ function DetalheVendaModal({
 		onClose();
 	}
 
+	function verCliente() {
+		const params = venda!.clienteId
+			? `clienteId=${encodeURIComponent(venda!.clienteId)}`
+			: `nome=${encodeURIComponent(venda!.cliente)}`;
+		navigate(`/clientes?${params}`);
+	}
+
 	return (
 		<Modal isOpen={true} onClose={onClose} title="Venda">
 			<div className={`mb-5 rounded-xl p-4 ${STATUS_CONFIG[venda.status].badgeClass.split(" ")[0]}`}>
 				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-2 text-slate-700">
+					<button
+						type="button"
+						onClick={verCliente}
+						className="flex items-center gap-2 text-slate-700 transition hover:text-blue-700 hover:underline"
+					>
 						<ShoppingCart size={14} />
 						<span className="text-xs font-semibold">{venda.cliente}</span>
-					</div>
+						<ChevronRight size={12} className="shrink-0" />
+					</button>
 					<StatusBadge status={venda.status} />
 				</div>
 				<p className="mt-2 text-xl font-bold text-slate-900">{formatBRL(total)}</p>
