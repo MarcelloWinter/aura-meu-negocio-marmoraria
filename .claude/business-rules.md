@@ -125,6 +125,8 @@ Botões "+ Nova receita" e "+ Nova despesa" no header abrem o mesmo componente `
 
 Ao salvar, a transação é adicionada ao array; totais dos cards atualizam imediatamente.
 
+**Repetição de despesas em parcelas (novo em 2026-08-23)**: apenas no formulário de nova **despesa**, checkbox "Repetir nos próximos meses" revela um campo "Quantos meses (incluindo este)" (inteiro entre 2 e 60, validado). Ao salvar com a repetição ativa, em vez de uma única transação são criadas **N transações independentes** — mesma descrição com sufixo `(i/N)` (ex.: "Aluguel (1/4)", "Aluguel (2/4)"...), mesmo valor e categoria, uma por mês a partir da data informada, preservando o dia do mês (com *clamp* para o último dia quando o mês de destino é mais curto — ex.: dia 31 de janeiro repete em 28/29 de fevereiro). Cada parcela é uma `Transacao` independente no array — não há vínculo entre elas além do padrão de descrição; cancelar/pagar uma não afeta as demais.
+
 ### Filtros nas listas de contas
 
 Ambas as listas usam o componente `ListaFiltrada`, que encapsula estado de filtro próprio (cada lista é independente). O cabeçalho de cada card expõe:
@@ -203,23 +205,67 @@ Criado em 2026-07-30. Pedidos de venda **por item** (não um valor único como n
 
 `src/contexts/ClientesContext.tsx` centraliza a lista de clientes, eliminando estado local duplicado que existia antes em `Clientes.tsx`.
 
-- **Tipos exportados**: `StatusAgendamento`, `AgendamentoHistorico`, `Cliente` (id, nome, telefone, avatarCor, agendamentos[]).
+- **Tipos exportados**: `StatusAgendamento`, `AgendamentoHistorico`, `Endereco` (novo em 2026-08-23: `cep?`, `rua?`, `numero?`, `complemento?`, `bairro?`, `cidade?`, `estado?`, todos opcionais), `Cliente` (id, nome, telefone, `cpfCnpj?`, `email?`, `endereco?: Endereco`, avatarCor, agendamentos[]).
 - **`ClientesProvider`**: mantém `clientes[]` em `useState` com dados mock iniciais. Expõe `addCliente` (recebe `Omit<Cliente, "id">`, gera UUID, retorna o `Cliente` criado) e `deletarCliente` (filtra por id).
-- **Quem consome**: `Clientes.tsx` (listagem e exclusão), `ClienteSelect.tsx` (busca e criação rápida), indiretamente `NovoAgendamentoModal` e `Financeiro` via `ClienteSelect`.
-- **Retorno do `addCliente`**: retorna o objeto criado, permitindo que `ClienteSelect` auto-selecione o cliente recém-cadastrado sem precisar encontrá-lo na lista depois.
+- **Quem consome**: `Clientes.tsx` (listagem e exclusão), `ClienteSelect.tsx` (busca e criação rápida — via o componente compartilhado `NovoClienteModal`, ver abaixo), indiretamente `NovoAgendamentoModal`, `Financeiro` e `Vendas` via `ClienteSelect`.
+- **Retorno do `addCliente`**: retorna o objeto criado, permitindo que `ClienteSelect`/`NovoClienteModal` auto-selecione o cliente recém-cadastrado sem precisar encontrá-lo na lista depois.
+
+## Componente compartilhado `NovoClienteModal` (novo em 2026-08-23)
+
+`src/components/NovoClienteModal.tsx` — formulário completo de criação de cliente, extraído de `Clientes.tsx` para ser reutilizado em qualquer lugar do sistema onde um cliente pode ser criado "na hora" (via `ClienteSelect`).
+
+- Autocontido: usa `useClientes()` internamente para chamar `addCliente` e calcular a cor do avatar (`CORES_AVATAR_CLIENTES[clientes.length % ...]`) — o caller só precisa de `isOpen`, `onClose` e, opcionalmente, `onCreated(cliente)`.
+- Campos: Nome, Telefone (obrigatórios); CPF/CNPJ, E-mail e Endereço — CEP, Número, Rua, Complemento, Bairro, Cidade, UF, cada um em seu próprio input (opcionais). Endereço só é salvo no cliente se pelo menos um dos sete campos foi preenchido.
+- Usado por `Clientes.tsx` (botão "Adicionar cliente") e por `ClienteSelect.tsx` (botão "+ Novo cliente" dentro do dropdown de busca — usado em `NovoAgendamentoModal`, "Nova receita" do Financeiro e `NovaVendaModal`). Antes, `ClienteSelect` tinha seu próprio mini-formulário (`NovoClienteRapido`, só Nome + Telefone) — removido em favor deste componente único, garantindo que o cliente criado a partir de qualquer módulo já tenha os mesmos campos disponíveis em `/clientes`.
 
 ## Módulo Clientes (`/clientes`)
 
-Lista de clientes cadastrados, **100% mockada** (estado em `ClientesContext`, sem backend). Agora é um consumer puro do contexto — não mantém estado próprio.
+Lista de clientes cadastrados, **100% mockada** (estado em `ClientesContext`, sem backend). É um consumer puro do contexto — não mantém estado próprio de dados.
 
 - Exibição em grid de cards com avatar colorido (iniciais), nome, telefone e histórico de agendamentos.
-- Criação via modal (Nome + Telefone + cor de avatar automática).
+- Criação via `NovoClienteModal` (ver acima) — Nome, Telefone, CPF/CNPJ, E-mail, Endereço.
+- `DetalheClienteModal`: cabeçalho (avatar, nome, telefone) + histórico de agendamentos + seção **"Dados pessoais"** sempre visível (CPF/CNPJ, E-mail, Endereço formatado — com "—" quando o campo não foi preenchido, desde 2026-08-23).
 - Exclusão com confirmação de dois passos.
-- Clientes criados aqui aparecem imediatamente disponíveis em `NovoAgendamentoModal` e em "Nova receita" no Financeiro.
+- Clientes criados aqui aparecem imediatamente disponíveis em `NovoAgendamentoModal`, "Nova receita" no Financeiro e `NovaVendaModal`.
+
+### Abertura automática via link de outro módulo (novo em 2026-08-23)
+
+A página lê os parâmetros de busca da URL (`useSearchParams`) num `useEffect`:
+- `?clienteId=<id>` — abre diretamente o `DetalheClienteModal` do cliente com esse id, se existir na lista.
+- `?nome=<nome>` (fallback, usado quando o registro de origem não tem `clienteId`) — se houver um cliente com nome exatamente igual (case-insensitive), abre o modal dele; senão, apenas pré-preenche o campo de busca com esse nome.
+- Os parâmetros são removidos da URL (`replace: true`) depois de processados, para não reabrir o modal ao navegar dentro da própria página de Clientes.
+- Ver "Navegação cliente → cadastro", abaixo, para quem gera esses links.
+
+## Módulo Configurações (`/configuracoes`)
+
+Criado em 2026-08-23 (`src/pages/Modules/Configuracoes.tsx`). O item já existia no menu da Sidebar antes disso, mas sem página/rota correspondente. **100% mockado**, sem persistência.
+
+- Duas abas apenas, em pill de abas: **Empresa** e **Integrações** — a pedido explícito do usuário, o mockup de referência tinha mais abas (Serviços, Agenda, Chatbot) que **não** foram implementadas.
+- **Empresa**: formulário com Nome da empresa (pré-preenchido com "Marmoraria Decore Granitos"), CNPJ (opcional), Telefone, E-mail e Endereço com os mesmos sete campos separados do módulo Clientes (CEP, Número, Rua, Complemento, Bairro, Cidade, UF). Botão "Salvar alterações" só atualiza o estado local do componente (mostra uma confirmação textual) — nada é persistido entre navegações.
+- **Integrações**: lista fixa de 3 integrações mockadas — **WhatsApp (via n8n)** (conectado por padrão, remete à recuperação de senha via WhatsApp já existente no fluxo de Auth), **Google Agenda** e **Webhook personalizado** (ambas desconectadas por padrão). Cada linha tem um botão Conectar/Desconectar que só alterna um badge de status local — nenhuma chamada real é feita.
+
+## Navegação cliente → cadastro (novo em 2026-08-23)
+
+Onde Agenda, Financeiro, Vendas e Atendimento fazem referência a um cliente, essa referência é clicável e leva o usuário para `/clientes`, abrindo automaticamente o `DetalheClienteModal` daquele cliente (ver "Abertura automática via link de outro módulo" na seção do módulo Clientes):
+
+- **Agenda** — `DetalheEventoModal`: campo "Cliente" é um botão (ícone de seta) que navega usando `evento.clienteId` quando disponível, ou `evento.nome` como fallback.
+- **Financeiro** — `DetalheTransacaoModal`: só para **receitas** (despesas nunca têm cliente vinculado — descrição é sempre texto livre); o nome do cliente (guardado em `transacao.descricao`) vira link, usando `transacao.clienteId` ou `transacao.descricao` como fallback.
+- **Vendas** — `DetalheVendaModal`: nome do cliente no cabeçalho colorido vira link, usando `venda.clienteId` ou `venda.cliente` como fallback.
+- **Atendimento** — `AtendimentoCard` (kanban): nome do cliente em cada card vira link. Como os "atendimentos" são dados 100% mockados e nunca vinculados a um `Cliente` real (não passam por `ClienteSelect`), o link usa **sempre** o nome (`atendimento.nome`) — não existe `clienteId` neste módulo.
+- `Evento` (Agenda), `Transacao` (Financeiro) e `Venda` (Vendas) ganharam campo opcional `clienteId?: string`, preenchido automaticamente a partir do `Cliente` escolhido em `ClienteSelect` no respectivo formulário de criação. Eventos/transações/vendas mockados (dados iniciais) não têm esse campo, então seus links sempre caem no fallback por nome — que só encontra o cliente se o nome mockado bater exatamente com um nome em `ClientesContext` (nem sempre é o caso, já que os mocks de cada módulo foram criados independentemente).
+
+## Sidebar e sessão
+
+- Botão **"Sair"** fixo no rodapé da Sidebar (abaixo do menu, separado por borda), em vermelho. Chama `useAuth().logout()` (limpa `@aura:token`/`@aura:user` do `localStorage` e zera o estado do `AuthContext`) e navega para `/` (Login). Continua acessível (só o ícone, com tooltip) quando a Sidebar está colapsada.
+- Isso é o **único** ponto de logout do sistema hoje — antes não existia nenhuma forma de encerrar sessão pela UI.
 
 ## Navegação / menu (Sidebar)
 
-O menu lateral (`Sidebar.tsx`) lista as seções do sistema. Rotas implementadas: **Atendimento** (`/atendimento`), **Agenda** (`/agenda`), **Clientes** (`/clientes`), **Vendas** (`/vendas`), **Financeiro** (`/financeiro`) e **Equipe** (`/equipe`).
+O menu lateral (`Sidebar.tsx`) lista as seções do sistema. Rotas implementadas: **Atendimento** (`/atendimento`), **Agenda** (`/agenda`), **Clientes** (`/clientes`), **Vendas** (`/vendas`), **Financeiro** (`/financeiro`), **Equipe** (`/equipe`) e **Configurações** (`/configuracoes`, desde 2026-08-23).
+
+## Módulo Equipe (`/equipe`) — permissões
+
+A lista de permissões exibida por usuário (`PERMISSOES_CONFIG`) foi corrigida em 2026-08-23 para refletir **exatamente** as abas reais do sistema: Atendimento, Agenda, Clientes, Vendas, Financeiro, Equipe e Configurações. Antes incluía `"dashboard"` (aba inexistente) e não tinha Clientes, Vendas nem Equipe como opções — bug de dados desde a criação do módulo, não uma remoção de funcionalidade.
 
 ## Pendências
 
@@ -231,3 +277,7 @@ O menu lateral (`Sidebar.tsx`) lista as seções do sistema. Rotas implementadas
 - Confirmar regras de multi-tenancy: como o isolamento por `empresaId` deve se aplicar às próximas funcionalidades de negócio (atendimento, agenda, financeiro, equipe, vendas).
 - Confirmar se a receita gerada automaticamente ao aprovar uma venda deveria ter um `vencimento` diferente da data do pedido (ex.: prazo de pagamento configurável), hoje é sempre a mesma data.
 - Confirmar se etapas do pipeline de Vendas deveriam permitir retroceder (hoje só avançam) e se deveria ser possível reabrir/estornar uma venda "Entregue".
+- Definir se os dados da aba "Empresa" em Configurações deveriam persistir de fato (hoje o botão "Salvar alterações" só atualiza estado local do componente, perdido ao navegar para outra página).
+- Confirmar se as integrações listadas em Configurações (WhatsApp/n8n, Google Agenda, Webhook) são as reais a serem suportadas, e o que "conectar" deveria de fato disparar quando houver backend.
+- As parcelas geradas pela repetição de despesas no Financeiro são transações totalmente independentes (sem `grupoRecorrencia` ou campo equivalente) — confirmar se será necessário no futuro editar/excluir todas as parcelas de uma vez, o que exigiria um campo de vínculo entre elas.
+- Cada módulo (Agenda, Financeiro, Vendas, Atendimento) mantém seus próprios nomes de cliente mockados, que nem sempre coincidem com os nomes em `ClientesContext` — por isso alguns links "ver cliente" em dados de exemplo não encontram correspondência. Isso se resolve organicamente à medida que dados reais (com `clienteId`) substituam os mocks; não é um bug de código.

@@ -6,11 +6,12 @@
 
 Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota nem página correspondente em `App.tsx`:
 
-- [ ] **Dashboard** (`/dashboard`) — item de menu existe, página não.
 - [x] **Financeiro** (`/financeiro`) — implementado em 2026-07-04 (mockado, sem backend).
 - [x] **Vendas** (`/vendas`) — implementado em 2026-07-30 (mockado, sem backend; ver [business-rules.md](./business-rules.md)).
-- [ ] **Equipe** (`/equipe`) — item de menu existe, página não.
-- [ ] **Configurações** (`/configuracoes`) — idem.
+- [x] **Equipe** (`/equipe`) — já implementado (mockado; lista de permissões corrigida em 2026-08-23, ver [business-rules.md](./business-rules.md)). Este item estava desatualizado — a página já existia antes desta rodada de documentação.
+- [x] **Configurações** (`/configuracoes`) — implementado em 2026-08-23 (mockado, só abas Empresa e Integrações; ver [business-rules.md](./business-rules.md)).
+
+> Nota: o item "Dashboard" (`/dashboard`) que constava aqui foi removido — não há esse item no menu da Sidebar atual (`Sidebar.tsx`); era uma imprecisão desta lista, não uma funcionalidade planejada e depois cancelada.
 
 ## Funcionalidades parcialmente implementadas (mock-only)
 
@@ -42,8 +43,8 @@ Itens já referenciados no menu lateral (`Sidebar.tsx`/`menuItems.ts`) sem rota 
 
 - ~~Financeiro (cobrança, pagamentos, possivelmente ligado ao estágio "Pagamento" do Atendimento).~~ *(implementado em 2026-07-04 — mockado)*
 - ~~Vendas (pedidos por item, ligados a Clientes e Financeiro).~~ *(implementado em 2026-07-30 — mockado, ver [business-rules.md](./business-rules.md))*
-- Equipe (cadastro de profissionais — já referenciados como texto livre na Agenda: "Júlia", "Rafa", "Você").
-- Configurações (dados da empresa, hoje hardcoded como "Marmoraria Decore Granitos" no `Header`).
+- ~~Equipe (cadastro de profissionais).~~ *(já implementado; profissionais na Agenda continuam como texto livre — "Júlia", "Rafa", "Você" — sem vínculo com o cadastro de Equipe)*
+- ~~Configurações (dados da empresa).~~ *(implementado em 2026-08-23 — mockado, sem persistência; nome da empresa no `Header` continua hardcoded, não lê da aba Empresa)*
 - Possível automação/IA no funil de atendimento, dado o uso de n8n e o domínio `aura-ia.cloud`.
 
 ## Pendências

@@ -60,8 +60,8 @@ Abordagem híbrida:
 | `Background` | `children` | Container de tela cheia centralizado, fundo `--background` |
 | `Logo` | `centered?`, `size?: "xs"\|"sm"\|"md"\|"lg"`, `hideText?` | Logo "Aura Meu Negócio": quadrado azul com "A" + texto (texto pode ser escondido para sidebar colapsada) |
 | `DashboardLayout` | `children` | Layout de página interna: Sidebar + Header + área de conteúdo scrollável; gerencia o próprio estado `sidebarOpen` |
-| `Header/Header` | `onMenuClick` | Cabeçalho do dashboard: botão de menu, nome da empresa (hardcoded "Marmoraria Decore Granitos"), ícone de notificação, avatar com iniciais ("MW", hardcoded) |
-| `Sidebar/Sidebar` | `isOpen`, `onClose` | Navegação lateral usada de fato pelo app; lista de menu hardcoded internamente |
+| `Header/Header` | `onMenuClick` | Cabeçalho do dashboard: botão de menu, nome da empresa (hardcoded "Marmoraria Decore Granitos"), avatar com iniciais ("MW", hardcoded). Ícone de notificação (`Bell`) removido em 2026-08-23. |
+| `Sidebar/Sidebar` | `isOpen`, `onClose` | Navegação lateral usada de fato pelo app; lista de menu hardcoded internamente; botão "Sair" fixo no rodapé (novo em 2026-08-23), chama `useAuth().logout()` |
 
 > **Atualizado em 2026-06-25**: `Sidebar/SidebarItem.tsx`, `Sidebar/menuItems.ts`, `Sidebar/SidebarLogo.tsx`, `PageContainer/PageContainer.tsx` e `contexts/SidebarContext.tsx` foram removidos (não eram usados por nenhuma página) — `Sidebar/Sidebar.tsx` passou a ser a única implementação. `src/components/Card.tsx` e `src/components/PageHeader.tsx` também foram removidos; `src/ui/Card.tsx` e `src/ui/PageHeader.tsx` são agora a única fonte. Ver [ARCHITECTURE_PLAN.md](./ARCHITECTURE_PLAN.md).
 
@@ -70,7 +70,7 @@ Abordagem híbrida:
 - Todos function components, tipados com `interface`/`type` próprios (sufixo `Props` quando aplicável).
 - Composição de `className` via template literals, com ternários para classes condicionais (não usa `clsx`/`cn`/`tailwind-merge`).
 - Spread de atributos HTML nativos (`...props`) para permitir uso flexível (`Button`, `Input`).
-- Ícones sempre via `lucide-react`, importados individualmente (`import { Bell, Menu } from "lucide-react"`).
+- Ícones sempre via `lucide-react`, importados individualmente (ex.: `import { Menu, LogOut } from "lucide-react"`).
 - Indentação do projeto usa **tabs** (não espaços) na maioria dos arquivos de `src/components` e `src/pages`; alguns arquivos (ex.: trechos de `Agenda.tsx`) usam espaços — ver [coding-standards.md](./coding-standards.md).
 
 ## Pendências

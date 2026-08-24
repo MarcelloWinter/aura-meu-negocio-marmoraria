@@ -37,7 +37,7 @@ src/
 ├── contexts/                 # AuthContext, ClientesContext, FinanceiroContext
 ├── pages/
 │   ├── Auth/                 # Login, ForgotPassword, VerifyCode, ResetPassword
-│   └── Modules/               # Service (Atendimento), Agenda, Clientes, Vendas, Financeiro, Equipe
+│   └── Modules/               # Service (Atendimento), Agenda, Clientes, Vendas, Financeiro, Equipe, Configuracoes
 ├── services/
 │   └── api.ts                 # Instância Axios única
 ├── styles/
@@ -61,21 +61,24 @@ src/
 /vendas              → Vendas (módulo Vendas, novo em 2026-07-30)
 /financeiro          → Financeiro (módulo Financeiro)
 /equipe              → Equipe (módulo Equipe)
+/configuracoes       → Configuracoes (módulo Configurações, novo em 2026-08-23)
 ```
 
-> A lista acima já reflete `App.tsx` na íntegra (confirmado em 2026-07-30). O restante desta seção — abaixo da nota sobre rotas protegidas — ainda descreve o estado de 2026-06-25 e não foi reauditado nesta rodada; ver Pendências.
+> A lista acima já reflete `App.tsx` na íntegra (confirmado em 2026-08-23). O restante desta seção — abaixo da nota sobre rotas protegidas — ainda descreve o estado de 2026-06-25 e não foi reauditado nesta rodada; ver Pendências.
 
 - Roteamento client-side via `BrowserRouter`/`Routes`/`Route` do `react-router-dom` v6.
 - **Não existem rotas protegidas** (`ProtectedRoute`/`PrivateRoute`). Qualquer rota é acessível diretamente pela URL sem autenticação prévia.
-- `/configuracoes` (presente no menu da Sidebar) continua sem página correspondente em `App.tsx`.
+- `/clientes` aceita os query params `?clienteId=` e `?nome=` (lidos via `useSearchParams`) para abrir automaticamente o modal de detalhe de um cliente ao navegar a partir de outro módulo — ver "Navegação cliente → cadastro" em [business-rules.md](./business-rules.md).
 
 ## Estado global
 
 Contextos existentes (todos em `src/contexts/`), providos em `App.tsx` na ordem `AuthProvider > ClientesProvider > FinanceiroProvider > BrowserRouter`:
 
-- **`ClientesContext`** — lista de clientes (`clientes[]`, `addCliente`, `deletarCliente`). Consumido por `Clientes.tsx`, `ClienteSelect` (e, através dele, por `NovoAgendamentoModal`, "Nova receita" no Financeiro e `NovaVendaModal`).
-- **`FinanceiroContext`** (novo em 2026-07-30) — transações financeiras (`transacoes[]`, `addTransacao`, `deletarTransacao`, `registrarPagamento`). Consumido por `Financeiro.tsx` e por `Vendas.tsx` (gera uma receita automaticamente ao aprovar um orçamento — ver [business-rules.md](./business-rules.md)).
-- **`AuthContext`** — sessão do usuário (login/logout), criado em 2026-06-25.
+- **`ClientesContext`** — lista de clientes (`clientes[]`, `addCliente`, `deletarCliente`). `Cliente` ganhou campos opcionais `cpfCnpj`, `email` e `endereco` (2026-08-23). Consumido por `Clientes.tsx`, `ClienteSelect` (e, através dele, por `NovoAgendamentoModal`, "Nova receita" no Financeiro e `NovaVendaModal`).
+- **`FinanceiroContext`** (novo em 2026-07-30) — transações financeiras (`transacoes[]`, `addTransacao`, `deletarTransacao`, `registrarPagamento`). `Transacao` ganhou campo opcional `clienteId` (2026-08-23). Consumido por `Financeiro.tsx` e por `Vendas.tsx` (gera uma receita automaticamente ao aprovar um orçamento — ver [business-rules.md](./business-rules.md)).
+- **`AuthContext`** — sessão do usuário (login/logout), criado em 2026-06-25. Desde 2026-08-23, `logout()` é chamado a partir de um botão real na Sidebar (antes só existia a função, sem UI que a acionasse).
+
+Componente compartilhado `src/components/NovoClienteModal.tsx` (novo em 2026-08-23) encapsula o formulário completo de criação de cliente sobre `ClientesContext` — usado por `Clientes.tsx` e por `ClienteSelect.tsx`. Ver detalhes em [business-rules.md](./business-rules.md).
 
 Não há mais `SidebarContext` — foi removido em 2026-06-25 junto com o `SidebarItem.tsx`/`menuItems.ts` que o consumiam (nenhuma página os referenciava; ver "Atualizações (2026-06-25)" abaixo). O `Sidebar.tsx` atual (usado em `DashboardLayout.tsx`) não usa Context algum: recebe `isOpen`/`onClose` via props e tem sua própria lista de menu hardcoded (`const menu = [...]`).
 
@@ -89,7 +92,7 @@ Não há mais `SidebarContext` — foi removido em 2026-06-25 junto com o `Sideb
   - `@aura:reset-user-id` — id retornado por `/auth/forgot-password` (quando presente)
   - `@aura:code-validated` — setado após validar o código de 6 dígitos; `ResetPassword.tsx` redireciona para `/` (login) no `useEffect` se essa flag não existir
 - O token JWT **nunca é lido de volta** do `localStorage` para ser enviado em requisições futuras — não há interceptor do Axios adicionando `Authorization: Bearer <token>`.
-- Não há lógica de logout, nem de expiração/refresh de token no cliente.
+- **Logout** (desde 2026-08-23): botão "Sair" no rodapé da Sidebar chama `useAuth().logout()` (limpa `@aura:token`/`@aura:user` do `localStorage`, zera o estado do contexto) e navega para `/`. Não há, ainda, expiração/refresh automático de token no cliente.
 
 ## Serviço HTTP (`src/services/api.ts`)
 
@@ -118,7 +121,8 @@ Ver detalhamento de regras em [business-rules.md](./business-rules.md). Resumo t
 - **Service.tsx** (`/atendimento`): array local `colunas` com 6 estágios e clientes mockados; renderizado em layout horizontal com scroll (`overflow-x-auto`), sem drag-and-drop.
 - **Agenda.tsx** (`/agenda`): array local `eventos` mockado; grid semanal (8 colunas: 1 de horas + 7 dias) construído com `date-fns` (`startOfWeek`, `addDays`, `addWeeks`, `subWeeks`); eventos posicionados com `position: absolute` calculado a partir de `top`/`height` em função de `HOUR_HEIGHT = 64`.
 - **Vendas.tsx** (`/vendas`, novo em 2026-07-30): pedidos por item com pipeline de status em kanban (4 colunas, mesmo padrão visual do `Service.tsx`); estado local `vendas[]`, mas grava receitas no `FinanceiroContext` compartilhado ao aprovar um orçamento. Detalhes completos em [business-rules.md](./business-rules.md).
-- **Clientes.tsx** (`/clientes`), **Financeiro.tsx** (`/financeiro`) e **Equipe.tsx** (`/equipe`): existem e estão roteados, mas não foram reauditados tecnicamente para esta seção desde 2026-06-25 (ver Pendências) — para Clientes e Financeiro, ver o detalhamento funcional já mantido em [business-rules.md](./business-rules.md), que está atualizado.
+- **Configuracoes.tsx** (`/configuracoes`, novo em 2026-08-23): duas abas (Empresa, Integrações), estado 100% local, sem persistência. Detalhes completos em [business-rules.md](./business-rules.md).
+- **Clientes.tsx** (`/clientes`), **Financeiro.tsx** (`/financeiro`) e **Equipe.tsx** (`/equipe`): existem e estão roteados; para Clientes, Financeiro, Vendas, Agenda, Configurações e Equipe, ver o detalhamento funcional atualizado em [business-rules.md](./business-rules.md).
 
 ## Build e tooling
 
@@ -140,6 +144,5 @@ Resolvido como parte do primeiro lote de execução do [ARCHITECTURE_PLAN.md](./
 ## Pendências
 
 - Migrar os imports relativos (`../../components/...`) para o alias `@/` (configurado, mas não adotado ainda).
-- Confirmar se a rota `/dashboard` (presente no menu da Sidebar, sem página) e `/configuracoes` estão no roadmap de curto prazo.
-- Implementar de fato as rotas protegidas/guard de autenticação no frontend (o `AuthContext` já existe como fundação, mas nenhuma rota ainda redireciona se não houver sessão).
-- **Este arquivo não recebeu uma reauditoria completa desde 2026-06-25** — só foi corrigido pontualmente em 2026-07-30 (roteamento, contextos e a nova página Vendas) durante a sessão que criou o módulo Vendas. As seções sobre build/tooling e páginas de Auth abaixo ainda não foram reconferidas contra o código atual; `business-rules.md` e `changelog.md` são as fontes mais atualizadas para Clientes/Financeiro/Vendas/Agenda.
+- Implementar de fato as rotas protegidas/guard de autenticação no frontend (o `AuthContext` já existe como fundação, o logout já funciona desde 2026-08-23, mas nenhuma rota ainda redireciona se não houver sessão).
+- **Este arquivo não recebeu uma reauditoria completa desde 2026-06-25** — foi corrigido pontualmente em 2026-07-30 (roteamento, contextos e a nova página Vendas) e em 2026-08-23 (rota/página Configurações, contextos com `clienteId`/dados pessoais de cliente, logout). As seções sobre build/tooling e páginas de Auth abaixo ainda não foram reconferidas contra o código atual; `business-rules.md` e `changelog.md` são as fontes mais atualizadas para Clientes/Financeiro/Vendas/Agenda/Configurações/Equipe.

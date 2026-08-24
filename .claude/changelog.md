@@ -2,6 +2,49 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
+## 2026-08-23 — (não commitado)
+**Dados pessoais de cliente, repetição de despesas, módulo Configurações, navegação cliente → cadastro, logout e limpezas de UI**
+
+### Clientes: CPF/CNPJ, e-mail e endereço estruturado
+- Tipo `Cliente` (`ClientesContext.tsx`) ganhou campos opcionais `cpfCnpj?`, `email?` e `endereco?: Endereco` — `Endereco` é um tipo próprio com `cep`, `rua`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, todos opcionais.
+- Formulário "Novo cliente" (`Clientes.tsx`) ganhou os três campos (CPF/CNPJ e e-mail em texto livre; endereço com **um input por parte** — CEP, Número, Rua, Complemento, Bairro, Cidade, UF — em vez de um único campo de texto livre), todos opcionais.
+- `DetalheClienteModal` passou a exibir **sempre** a seção "Dados pessoais" (CPF/CNPJ, E-mail, Endereço formatado via `formatarEndereco`), com "—" no lugar de campos não preenchidos, em vez de esconder a seção inteira quando algum campo estava vazio.
+- **Refatoração**: o formulário completo de "Novo cliente" foi extraído para um componente compartilhado, `src/components/NovoClienteModal.tsx` — encapsula toda a criação (inclui a cor do avatar via `useClientes()`) e expõe `onCreated?(cliente)`. `Clientes.tsx` e `ClienteSelect.tsx` (usado em Financeiro, Vendas e `NovoAgendamentoModal`) passaram a usá-lo, eliminando o mini-formulário antigo do `ClienteSelect` (`NovoClienteRapido`, que só tinha Nome + Telefone) — agora o botão "Novo cliente" abre o formulário completo em qualquer lugar do sistema onde um cliente é selecionado.
+
+### Financeiro: repetição de despesas em parcelas mensais
+- `NovaTransacaoModal`, apenas para despesas: checkbox "Repetir nos próximos meses" + campo numérico "Quantos meses (incluindo este)" (2 a 60, validado).
+- Ao salvar com repetição ativa, são geradas N transações — mesma descrição com sufixo `(i/N)`, mesmo valor, uma por mês a partir da data informada. Nova função `adicionarMeses(dataISO, meses)` soma meses preservando o dia (com *clamp* para o último dia do mês quando o mês de destino é mais curto, ex.: dia 31 de janeiro → 28/29 de fevereiro).
+- `onSave` do modal passou a entregar um array de transações (`Omit<Transacao, "id">[]`) em vez de uma única; `Financeiro.tsx` insere cada uma via `addTransacao` em sequência.
+
+### Novo módulo Configurações (`/configuracoes`)
+- Criado `src/pages/Modules/Configuracoes.tsx` e registrada a rota em `App.tsx` (o item já existia na Sidebar, mas sem página correspondente).
+- Duas abas apenas — **Empresa** e **Integrações** — em pill de abas (mesmo padrão visual do mockup de referência fornecido pelo usuário).
+  - **Empresa**: formulário com Nome da empresa (pré-preenchido com "Marmoraria Decore Granitos"), CNPJ, Telefone, E-mail e Endereço com campos separados (mesmo padrão de Clientes: CEP/Número/Rua/Complemento/Bairro/Cidade/UF). Estado local, sem persistência.
+  - **Integrações**: lista mockada de 3 integrações (WhatsApp via n8n — conectado por padrão, Google Agenda, Webhook personalizado), cada uma com badge de status e botão Conectar/Desconectar (alterna estado local, sem chamada real).
+
+### Navegação cliente → cadastro ("clicar para ver o cliente")
+- Onde Agenda, Financeiro, Vendas e Atendimento fazem referência a um cliente, a referência agora é clicável e leva para `/clientes`, abrindo automaticamente o cadastro daquele cliente:
+  - **Agenda** (`DetalheEventoModal`): campo "Cliente" virou botão com seta indicando link.
+  - **Financeiro** (`DetalheTransacaoModal`): nome do cliente (guardado como `descricao` da receita) virou link — só para receitas, já que despesas nunca têm cliente vinculado (descrição é texto livre).
+  - **Vendas** (`DetalheVendaModal`): nome do cliente no cabeçalho colorido virou link.
+  - **Atendimento** (`AtendimentoCard`, em `Service.tsx`): nome do cliente em cada card do kanban virou link (chevron ao lado do nome).
+- Novo campo opcional `clienteId?: string` adicionado a `Evento` (Agenda), `Transacao` (Financeiro) e `Venda` (Vendas) — preenchido automaticamente a partir do `Cliente` escolhido em `ClienteSelect` nos respectivos formulários de criação.
+- Para dados mockados que não têm `clienteId` (ex.: eventos/vendas/atendimentos iniciais), o link cai num **fallback por nome**: navega para `/clientes?nome=<nome>`, que abre o cliente automaticamente se houver correspondência exata de nome, ou apenas pré-preenche a busca quando não encontra.
+- `Clientes.tsx` passou a ler `clienteId`/`nome` da URL (`useSearchParams`) num `useEffect` que abre o modal de detalhes do cliente correspondente e limpa os parâmetros da URL em seguida.
+
+### Sidebar: botão de logout
+- Adicionado botão "Sair" fixo no rodapé da Sidebar (abaixo do menu, com borda separadora), estilizado em vermelho. Chama `useAuth().logout()` (limpa `@aura:token`/`@aura:user` do `localStorage`) e navega para `/` (Login). Funciona também no modo colapsado da sidebar (só ícone, com tooltip "Sair").
+
+### Equipe: lista de permissões corrigida
+- O tipo `Permissao` e `PERMISSOES_CONFIG` (`Equipe.tsx`) listavam `"dashboard"` — aba que não existe no sistema — e não incluíam Clientes, Vendas nem Equipe. Corrigido para refletir exatamente as abas reais da Sidebar: Atendimento, Agenda, Clientes, Vendas, Financeiro, Equipe, Configurações. Mock da usuária proprietária (Maria Silva) atualizado para ter todas as permissões corretas.
+
+### Header: remoção do sino de notificação
+- Ícone de sino (`Bell`, sem funcionalidade) removido do `Header.tsx`, a pedido do usuário.
+
+### Validação
+- `tsc -b` e `npm run lint` validados a cada mudança, sem novos erros/warnings além dos já pré-existentes no projeto (4 ocorrências da regra `react-hooks/set-state-in-effect` + 1 warning `exhaustive-deps`, presentes antes desta sessão).
+- Validado visualmente via Edge headless (`--headless --screenshot`, já que `chromium-cli`/Playwright não estão disponíveis no ambiente): formulário de cliente com endereço estruturado, deep-link `/clientes?nome=...` abrindo o cliente certo, página `/vendas`, Sidebar com botão "Sair", página `/equipe` com a lista de permissões corrigida, e kanban de `/atendimento` com os links de cliente.
+
 ## 2026-07-30 — (não commitado)
 **Módulo Vendas (`/vendas`): pedidos por item, pipeline de status e integração com o Financeiro**
 
