@@ -13,10 +13,23 @@ export type AgendamentoHistorico = {
 	status: StatusAgendamento;
 };
 
+export type Endereco = {
+	cep?: string;
+	rua?: string;
+	numero?: string;
+	complemento?: string;
+	bairro?: string;
+	cidade?: string;
+	estado?: string;
+};
+
 export type Cliente = {
 	id: string;
 	nome: string;
 	telefone: string;
+	cpfCnpj?: string;
+	email?: string;
+	endereco?: Endereco;
 	avatarCor: string;
 	agendamentos: AgendamentoHistorico[];
 };

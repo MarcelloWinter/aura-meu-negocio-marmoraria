@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, Plus, X, Phone } from "lucide-react";
 
-import { Modal } from "../ui/Modal";
-import { Input } from "./Input";
-import { Button } from "./Button";
-import { useClientes, CORES_AVATAR_CLIENTES } from "../contexts/ClientesContext";
+import { NovoClienteModal } from "./NovoClienteModal";
+import { useClientes } from "../contexts/ClientesContext";
 import type { Cliente } from "../contexts/ClientesContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -18,62 +16,6 @@ function getInitials(name: string) {
 		.slice(0, 2);
 }
 
-// ─── Modal de novo cliente rápido ─────────────────────────────────────────────
-
-function NovoClienteRapido({
-	onClose,
-	onSave,
-}: {
-	onClose: () => void;
-	onSave: (dados: { nome: string; telefone: string }) => void;
-}) {
-	const [nome, setNome] = useState("");
-	const [telefone, setTelefone] = useState("");
-	const [errors, setErrors] = useState({ nome: "", telefone: "" });
-
-	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-		e.preventDefault();
-		const novosErros = {
-			nome: nome.trim() ? "" : "Informe o nome.",
-			telefone: telefone.trim() ? "" : "Informe o telefone.",
-		};
-		setErrors(novosErros);
-		if (Object.values(novosErros).some(Boolean)) return;
-		onSave({ nome: nome.trim(), telefone: telefone.trim() });
-	}
-
-	return (
-		<Modal isOpen={true} onClose={onClose} title="Novo cliente">
-			<form onSubmit={handleSubmit} className="space-y-4">
-				<Input
-					label="Nome"
-					placeholder="Nome completo"
-					autoFocus
-					value={nome}
-					onChange={(e) => setNome(e.target.value)}
-					error={errors.nome}
-				/>
-				<Input
-					label="Telefone"
-					type="tel"
-					placeholder="(11) 99999-9999"
-					value={telefone}
-					onChange={(e) => setTelefone(e.target.value)}
-					error={errors.telefone}
-				/>
-				<div className="flex justify-end gap-3 pt-2">
-					<Button type="button" variant="secondary" className="!w-auto px-5" onClick={onClose}>
-						Cancelar
-					</Button>
-					<Button type="submit" className="!w-auto px-5">
-						Adicionar
-					</Button>
-				</div>
-			</form>
-		</Modal>
-	);
-}
-
 // ─── Selector de cliente com busca ────────────────────────────────────────────
 
 export function ClienteSelect({
@@ -85,7 +27,7 @@ export function ClienteSelect({
 	onChange: (c: Cliente | null) => void;
 	error?: string;
 }) {
-	const { clientes, addCliente } = useClientes();
+	const { clientes } = useClientes();
 	const [aberto, setAberto] = useState(false);
 	const [busca, setBusca] = useState("");
 	const [novoAberto, setNovoAberto] = useState(false);
@@ -114,12 +56,7 @@ export function ClienteSelect({
 		setBusca("");
 	}
 
-	function handleNovoCliente(dados: { nome: string; telefone: string }) {
-		const novo = addCliente({
-			...dados,
-			avatarCor: CORES_AVATAR_CLIENTES[clientes.length % CORES_AVATAR_CLIENTES.length],
-			agendamentos: [],
-		});
+	function handleNovoCliente(novo: Cliente) {
 		onChange(novo);
 		setNovoAberto(false);
 	}
@@ -243,12 +180,11 @@ export function ClienteSelect({
 
 			{error && <p className="text-xs text-red-500">{error}</p>}
 
-			{novoAberto && (
-				<NovoClienteRapido
-					onClose={() => setNovoAberto(false)}
-					onSave={handleNovoCliente}
-				/>
-			)}
+			<NovoClienteModal
+				isOpen={novoAberto}
+				onClose={() => setNovoAberto(false)}
+				onCreated={handleNovoCliente}
+			/>
 		</div>
 	);
 }
