@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
-import { TrendingUp, TrendingDown, Wallet, Plus, Search, SlidersHorizontal, X, Trash2, CheckCircle2, Banknote, CreditCard, QrCode, FileText, ArrowLeftRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { TrendingUp, TrendingDown, Wallet, Plus, Search, SlidersHorizontal, X, Trash2, CheckCircle2, Banknote, CreditCard, QrCode, FileText, ArrowLeftRight, ChevronRight } from "lucide-react";
 
 import { DashboardLayout } from "../../components/DashboardLayout";
 import { Modal } from "../../ui/Modal";
@@ -39,6 +40,16 @@ function isoParaDDMMAAAA(iso: string): string {
 
 function hojeISO(): string {
 	return new Date().toISOString().split("T")[0];
+}
+
+function adicionarMeses(dataISO: string, meses: number): string {
+	const [y, m, d] = dataISO.split("-").map(Number);
+	const alvoMes = m - 1 + meses;
+	const anoAlvo = y + Math.floor(alvoMes / 12);
+	const mesAlvo = ((alvoMes % 12) + 12) % 12;
+	const ultimoDiaMes = new Date(anoAlvo, mesAlvo + 1, 0).getDate();
+	const diaAlvo = Math.min(d, ultimoDiaMes);
+	return `${anoAlvo}-${String(mesAlvo + 1).padStart(2, "0")}-${String(diaAlvo).padStart(2, "0")}`;
 }
 
 // ─── Formas de pagamento ──────────────────────────────────────────────────────
@@ -584,6 +595,7 @@ function DetalheTransacaoModal({
 	const [pagData, setPagData] = useState(hojeISO());
 	const [pagForma, setPagForma] = useState<FormaPagamento | "">("");
 	const [pagErrors, setPagErrors] = useState({ valor: "", data: "", forma: "" });
+	const navigate = useNavigate();
 
 	useEffect(() => {
 		if (!transacao) return;
@@ -607,6 +619,13 @@ function DetalheTransacaoModal({
 	function confirmarDelete() {
 		onDeletar(transacao!.id);
 		onClose();
+	}
+
+	function verCliente() {
+		const params = transacao!.clienteId
+			? `clienteId=${encodeURIComponent(transacao!.clienteId)}`
+			: `nome=${encodeURIComponent(transacao!.descricao)}`;
+		navigate(`/clientes?${params}`);
 	}
 
 	function handlePagamento(e: React.FormEvent<HTMLFormElement>) {
@@ -649,7 +668,18 @@ function DetalheTransacaoModal({
 					</div>
 					<StatusBadge status={transacao.status} />
 				</div>
-				<p className="mt-2 text-base font-bold text-slate-900">{transacao.descricao}</p>
+				{isReceita ? (
+					<button
+						type="button"
+						onClick={verCliente}
+						className="mt-2 flex items-center gap-1 text-base font-bold text-blue-700 transition hover:underline"
+					>
+						{transacao.descricao}
+						<ChevronRight size={14} className="shrink-0" />
+					</button>
+				) : (
+					<p className="mt-2 text-base font-bold text-slate-900">{transacao.descricao}</p>
+				)}
 				<p className={`mt-1 text-xl font-bold ${isReceita ? "text-teal-700" : "text-red-600"}`}>
 					{formatBRL(transacao.valor)}
 				</p>
@@ -842,7 +872,7 @@ const CATEGORIAS_DESPESA: SelectOption[] = [
 ];
 
 
-const ERROS_VAZIOS = { descricao: "", categoria: "", valor: "", data: "" };
+const ERROS_VAZIOS = { descricao: "", categoria: "", valor: "", data: "", parcelas: "" };
 
 function NovaTransacaoModal({
 	tipo,
@@ -853,16 +883,19 @@ function NovaTransacaoModal({
 	tipo: TipoTransacao;
 	isOpen: boolean;
 	onClose: () => void;
-	onSave: (t: Omit<Transacao, "id">) => void;
+	onSave: (t: Omit<Transacao, "id">[]) => void;
 }) {
 	const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
 	const [descricao, setDescricao] = useState("");
 	const [categoria, setCategoria] = useState("");
 	const [valor, setValor] = useState("");
 	const [data, setData] = useState("");
+	const [repetir, setRepetir] = useState(false);
+	const [parcelas, setParcelas] = useState("2");
 	const [errors, setErrors] = useState(ERROS_VAZIOS);
 
 	const categorias = tipo === "receita" ? CATEGORIAS_RECEITA : CATEGORIAS_DESPESA;
+	const repeticaoAtiva = tipo === "despesa" && repetir;
 
 	function limpar() {
 		setClienteSelecionado(null);
@@ -870,6 +903,8 @@ function NovaTransacaoModal({
 		setCategoria("");
 		setValor("");
 		setData("");
+		setRepetir(false);
+		setParcelas("2");
 
 		setErrors(ERROS_VAZIOS);
 	}
@@ -882,6 +917,7 @@ function NovaTransacaoModal({
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		const v = parseFloat(valor.replace(",", "."));
+		const numParcelas = parseInt(parcelas, 10);
 		const descricaoFinal = tipo === "receita" ? (clienteSelecionado?.nome ?? "") : descricao;
 		const novosErros = {
 			descricao:
@@ -891,18 +927,27 @@ function NovaTransacaoModal({
 			categoria: categoria ? "" : "Selecione a categoria.",
 			valor: !valor ? "Informe o valor." : isNaN(v) || v <= 0 ? "Valor inválido." : "",
 			data: data ? "" : "Informe a data.",
+			parcelas: repeticaoAtiva
+				? (!parcelas || isNaN(numParcelas) || numParcelas < 2 || numParcelas > 60
+					? "Informe um número de meses válido (2 a 60)."
+					: "")
+				: "",
 		};
 		setErrors(novosErros);
 		if (Object.values(novosErros).some(Boolean)) return;
 
-		onSave({
-			descricao: descricaoFinal,
+		const total = repeticaoAtiva ? numParcelas : 1;
+		const transacoes: Omit<Transacao, "id">[] = Array.from({ length: total }, (_, i) => ({
+			descricao: total > 1 ? `${descricaoFinal} (${i + 1}/${total})` : descricaoFinal,
 			tipo,
+			clienteId: tipo === "receita" ? clienteSelecionado?.id : undefined,
 			categoria,
 			valor: v,
-			vencimento: isoParaDDMM(data),
+			vencimento: isoParaDDMM(i === 0 ? data : adicionarMeses(data, i)),
 			status: "em_dia",
-		});
+		}));
+
+		onSave(transacoes);
 		limpar();
 	}
 
@@ -957,6 +1002,32 @@ function NovaTransacaoModal({
 					error={errors.data}
 				/>
 
+				{tipo === "despesa" && (
+					<div className="space-y-3 rounded-xl border border-slate-200 p-3">
+						<label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+							<input
+								type="checkbox"
+								checked={repetir}
+								onChange={(e) => setRepetir(e.target.checked)}
+								className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
+							/>
+							Repetir nos próximos meses (ex: parcelas de um boleto)
+						</label>
+						{repetir && (
+							<Input
+								label="Quantos meses (incluindo este)"
+								type="number"
+								min="2"
+								max="60"
+								placeholder="Ex: 4"
+								value={parcelas}
+								onChange={(e) => setParcelas(e.target.value)}
+								error={errors.parcelas}
+							/>
+						)}
+					</div>
+				)}
+
 				<div className="flex justify-end gap-3 pt-2">
 					<Button
 						type="button"
@@ -1006,8 +1077,8 @@ export function Financeiro() {
 		: null;
 
 
-	function handleSalvarTransacao(dados: Omit<Transacao, "id">) {
-		addTransacao(dados);
+	function handleSalvarTransacao(lista: Omit<Transacao, "id">[]) {
+		lista.forEach((dados) => addTransacao(dados));
 		setModalAberto(null);
 	}
 

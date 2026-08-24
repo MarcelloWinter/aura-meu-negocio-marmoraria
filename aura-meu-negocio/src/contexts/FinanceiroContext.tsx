@@ -19,6 +19,7 @@ export type Transacao = {
 	id: string;
 	descricao: string;
 	tipo: TipoTransacao;
+	clienteId?: string;
 	categoria?: string;
 	valor: number;
 	vencimento: string; // "DD/MM"
