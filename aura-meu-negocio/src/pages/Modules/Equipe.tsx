@@ -8,7 +8,14 @@ import { Button } from "../../components/Button";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-type Permissao = "dashboard" | "atendimento" | "agenda" | "financeiro" | "configuracoes";
+type Permissao =
+	| "atendimento"
+	| "agenda"
+	| "clientes"
+	| "vendas"
+	| "financeiro"
+	| "equipe"
+	| "configuracoes";
 type StatusUsuario = "ativo" | "inativo";
 
 type Cargo = "proprietario" | "profissional" | "atendente";
@@ -31,10 +38,12 @@ const CARGOS_CONFIG: { value: Cargo; label: string }[] = [
 ];
 
 const PERMISSOES_CONFIG: { value: Permissao; label: string }[] = [
-	{ value: "dashboard", label: "Dashboard" },
 	{ value: "atendimento", label: "Atendimento" },
 	{ value: "agenda", label: "Agenda" },
+	{ value: "clientes", label: "Clientes" },
+	{ value: "vendas", label: "Vendas" },
 	{ value: "financeiro", label: "Financeiro" },
+	{ value: "equipe", label: "Equipe" },
 	{ value: "configuracoes", label: "Configurações" },
 ];
 
@@ -55,7 +64,7 @@ const MOCK_USUARIOS: Usuario[] = [
 		nome: "Maria Silva",
 		cargos: ["proprietario"],
 		status: "ativo",
-		permissoes: ["dashboard", "atendimento", "agenda", "financeiro", "configuracoes"],
+		permissoes: ["atendimento", "agenda", "clientes", "vendas", "financeiro", "equipe", "configuracoes"],
 		cor: "bg-slate-400",
 	},
 	{

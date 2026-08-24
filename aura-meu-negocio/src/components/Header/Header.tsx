@@ -1,4 +1,4 @@
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 
 interface HeaderProps {
 	onMenuClick: () => void;
@@ -19,10 +19,6 @@ export function Header({ onMenuClick }: HeaderProps) {
 			</div>
 
 			<div className="flex items-center gap-4">
-				<button>
-					<Bell size={20} />
-				</button>
-
 				<div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
 					MW
 				</div>

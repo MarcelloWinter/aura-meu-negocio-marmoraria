@@ -1,6 +1,7 @@
 import {
 	BookUser,
 	Calendar,
+	LogOut,
 	MessageSquare,
 	Settings,
 	ShoppingCart,
@@ -8,8 +9,9 @@ import {
 	Wallet,
 } from "lucide-react";
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Logo } from "../Logo";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface SidebarProps {
 	isOpen: boolean;
@@ -55,6 +57,14 @@ const menu = [
 ];
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+	const { logout } = useAuth();
+	const navigate = useNavigate();
+
+	function handleLogout() {
+		logout();
+		navigate("/");
+	}
+
 	return (
 		<>
 			{isOpen && (
@@ -75,6 +85,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 					z-50
 					overflow-hidden
 
+					flex flex-col
+
 					transition-all
 					duration-300
 
@@ -93,7 +105,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 					</div>
 				</div>
 
-				<nav className="p-4 space-y-2">
+				<nav className="flex-1 overflow-y-auto p-4 space-y-2">
 					{menu.map((item) => {
 						const Icon = item.icon;
 
@@ -131,6 +143,36 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 						);
 					})}
 				</nav>
+
+				<div className="border-t border-slate-200 p-4">
+					<button
+						type="button"
+						onClick={handleLogout}
+						title={!isOpen ? "Sair" : ""}
+						className={`
+							flex w-full items-center
+							${isOpen ? "gap-3 px-4 justify-start" : "justify-center px-2"}
+							py-3
+							rounded-xl
+							text-red-600
+							transition
+							hover:bg-red-50
+						`}
+					>
+						<LogOut size={18} />
+
+						<span
+							className={`
+								transition-all
+								duration-200
+								whitespace-nowrap
+								${isOpen ? "opacity-100 ml-0" : "opacity-0 w-0 overflow-hidden"}
+							`}
+						>
+							Sair
+						</span>
+					</button>
+				</div>
 			</aside>
 		</>
 	);
