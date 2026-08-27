@@ -21,18 +21,12 @@ Fluxo composto por 4 passos, todos client-driven (o frontend decide a navegaçã
 
 ## Módulo Atendimento (`/atendimento`)
 
-Implementado como um pipeline (Kanban) com **6 estágios fixos**, hoje **100% mockado** (array hardcoded em `Service.tsx`, sem chamada de API):
+Implementado como um pipeline (Kanban). **Desde 2026-08-27, os dados são reais** — `Service.tsx` busca `GET /chats` (backend, ver [backend.md](./backend.md)) em vez de usar o array hardcoded de antes.
 
-1. **Início** — novo contato do cliente.
-2. **Agendamento** — cliente solicitou/está agendando um horário.
-3. **Cancelamento** — cliente solicitou cancelamento.
-4. **Pagamento** — atendimento aguardando pagamento.
-5. **Atendimento Humano** — conversa escalada para um atendente humano (sugere que parte do atendimento inicial pode ser automatizado/bot, possivelmente também via n8n, dado o restante do projeto).
-6. **Concluído** — atendimento finalizado.
-
-Cada cliente no pipeline tem: nome, horário (ou rótulo relativo como "Ontem") e a última mensagem trocada. Não há, no código atual: movimentação entre colunas (sem drag-and-drop), clique para abrir detalhes, nem qualquer persistência — é puramente uma visualização estática de exemplo.
-
-**Inconsistência nos dados mock observada**: os cards listados na coluna "Cancelamento" (ex.: "Pedro Lima — Barba — confirmado", "Ana Costa — Corte feminino") descrevem agendamentos confirmados, não cancelamentos — provavelmente um placeholder de dados que não reflete a regra de negócio real da etapa. Ver Pendências.
+- **Colunas dinâmicas**: as 6 colunas fixas do mockup original (Início/Agendamento/Cancelamento/Pagamento/Atendimento Humano/Concluído) foram abandonadas — não havia como mapear esses rótulos, inventados para a demo, para o valor real da coluna `chats.etapa` (texto livre controlado pelo bot do n8n; hoje só existe o valor `selecao_opcao` nos dados). As colunas agora são geradas a partir dos valores distintos de `etapa` presentes na resposta da API, com o rótulo humanizado (`selecao_opcao` → "Selecao Opcao").
+- Cada card mostra: nome do cliente (via `LEFT JOIN` com `clientes_copy` no backend, com fallback para o número de telefone se não houver cliente vinculado), horário (`HH:mm` se for hoje, `dd/MM` caso contrário) e a última mensagem (`chats_copy.ultima_mensagem`).
+- Clicar no nome do cliente em qualquer card leva para `/clientes?clienteId=...` — link exato, já que `chats_copy.cliente_id` aponta para `clientes_copy.id` (mesma tabela usada por `ClientesContext`).
+- Ainda **não há**: movimentação entre colunas (sem drag-and-drop), criação/edição de chat pela UI (`GET /chats` é somente leitura), nem paginação/filtro.
 
 ## Módulo Agenda (`/agenda`)
 
@@ -206,9 +200,9 @@ Criado em 2026-07-30. Pedidos de venda **por item** (não um valor único como n
 `src/contexts/ClientesContext.tsx` centraliza a lista de clientes, eliminando estado local duplicado que existia antes em `Clientes.tsx`.
 
 - **Tipos exportados**: `StatusAgendamento`, `AgendamentoHistorico`, `Endereco` (novo em 2026-08-23: `cep?`, `rua?`, `numero?`, `complemento?`, `bairro?`, `cidade?`, `estado?`, todos opcionais), `Cliente` (id, nome, telefone, `cpfCnpj?`, `email?`, `endereco?: Endereco`, avatarCor, agendamentos[]).
-- **`ClientesProvider`**: mantém `clientes[]` em `useState` com dados mock iniciais. Expõe `addCliente` (recebe `Omit<Cliente, "id">`, gera UUID, retorna o `Cliente` criado) e `deletarCliente` (filtra por id).
+- **`ClientesProvider`** (real desde 2026-08-27, antes era mock): busca `GET /clientes` num `useEffect` ao montar e mantém o resultado em `clientes[]`; expõe `carregando: boolean` até a resposta chegar. `addCliente` é assíncrono — chama `POST /clientes` e usa o cliente retornado pela API (com `id` real do banco) em vez de gerar um UUID local. `deletarCliente` remove otimista do estado local e dispara `DELETE /clientes/:id` em paralelo (loga no console se falhar, sem repor o item na UI). `agendamentos` e `avatarCor` continuam sendo campos só-de-frontend — não existem no banco, então `agendamentos` sempre vem `[]` de dados reais e `avatarCor` é calculado por índice na lista.
 - **Quem consome**: `Clientes.tsx` (listagem e exclusão), `ClienteSelect.tsx` (busca e criação rápida — via o componente compartilhado `NovoClienteModal`, ver abaixo), indiretamente `NovoAgendamentoModal`, `Financeiro` e `Vendas` via `ClienteSelect`.
-- **Retorno do `addCliente`**: retorna o objeto criado, permitindo que `ClienteSelect`/`NovoClienteModal` auto-selecione o cliente recém-cadastrado sem precisar encontrá-lo na lista depois.
+- **Retorno do `addCliente`**: retorna o cliente confirmado pela API, permitindo que `ClienteSelect`/`NovoClienteModal` auto-selecione o cliente recém-cadastrado sem precisar encontrá-lo na lista depois.
 
 ## Componente compartilhado `NovoClienteModal` (novo em 2026-08-23)
 
@@ -217,16 +211,18 @@ Criado em 2026-07-30. Pedidos de venda **por item** (não um valor único como n
 - Autocontido: usa `useClientes()` internamente para chamar `addCliente` e calcular a cor do avatar (`CORES_AVATAR_CLIENTES[clientes.length % ...]`) — o caller só precisa de `isOpen`, `onClose` e, opcionalmente, `onCreated(cliente)`.
 - Campos: Nome, Telefone (obrigatórios); CPF/CNPJ, E-mail e Endereço — CEP, Número, Rua, Complemento, Bairro, Cidade, UF, cada um em seu próprio input (opcionais). Endereço só é salvo no cliente se pelo menos um dos sete campos foi preenchido.
 - Usado por `Clientes.tsx` (botão "Adicionar cliente") e por `ClienteSelect.tsx` (botão "+ Novo cliente" dentro do dropdown de busca — usado em `NovoAgendamentoModal`, "Nova receita" do Financeiro e `NovaVendaModal`). Antes, `ClienteSelect` tinha seu próprio mini-formulário (`NovoClienteRapido`, só Nome + Telefone) — removido em favor deste componente único, garantindo que o cliente criado a partir de qualquer módulo já tenha os mesmos campos disponíveis em `/clientes`.
+- **Desde 2026-08-27, o submit é assíncrono e persiste de verdade** (`POST /clientes`, ver [backend.md](./backend.md)): botão mostra "Salvando…" e fica desabilitado durante a chamada; se a API falhar, aparece uma mensagem de erro no formulário em vez de fechar o modal como se tivesse dado certo.
 
 ## Módulo Clientes (`/clientes`)
 
-Lista de clientes cadastrados, **100% mockada** (estado em `ClientesContext`, sem backend). É um consumer puro do contexto — não mantém estado próprio de dados.
+Lista de clientes cadastrados. **Desde 2026-08-27, os dados são reais** (`ClientesContext` busca `GET /clientes`) — antes era 100% mockado. É um consumer puro do contexto — não mantém estado próprio de dados.
 
-- Exibição em grid de cards com avatar colorido (iniciais), nome, telefone e histórico de agendamentos.
-- Criação via `NovoClienteModal` (ver acima) — Nome, Telefone, CPF/CNPJ, E-mail, Endereço.
+- Exibição em grid de cards com avatar colorido (iniciais), nome, telefone e histórico de agendamentos. Mostra "Carregando clientes…" enquanto a lista ainda não chegou da API.
+- Criação via `NovoClienteModal` (ver acima) — Nome, Telefone, CPF/CNPJ, E-mail, Endereço. Persiste no banco (`clientes_copy` + `enderecos`, nunca nas tabelas live — ver [database.md](./database.md)).
 - `DetalheClienteModal`: cabeçalho (avatar, nome, telefone) + histórico de agendamentos + seção **"Dados pessoais"** sempre visível (CPF/CNPJ, E-mail, Endereço formatado — com "—" quando o campo não foi preenchido, desde 2026-08-23).
-- Exclusão com confirmação de dois passos.
+- Exclusão com confirmação de dois passos — persiste de verdade desde 2026-08-27 (`DELETE /clientes/:id`), removida otimista da tela antes da resposta da API chegar.
 - Clientes criados aqui aparecem imediatamente disponíveis em `NovoAgendamentoModal`, "Nova receita" no Financeiro e `NovaVendaModal`.
+- **`agendamentos` sempre vem vazio** para clientes reais — não existe uma tabela de agendamentos ligada a `clientes_copy` consumida ainda pelo frontend (a Agenda continua com seu próprio estado local mockado, sem relação com este histórico). Ver Pendências.
 
 ### Abertura automática via link de outro módulo (novo em 2026-08-23)
 
@@ -280,4 +276,7 @@ A lista de permissões exibida por usuário (`PERMISSOES_CONFIG`) foi corrigida 
 - Definir se os dados da aba "Empresa" em Configurações deveriam persistir de fato (hoje o botão "Salvar alterações" só atualiza estado local do componente, perdido ao navegar para outra página).
 - Confirmar se as integrações listadas em Configurações (WhatsApp/n8n, Google Agenda, Webhook) são as reais a serem suportadas, e o que "conectar" deveria de fato disparar quando houver backend.
 - As parcelas geradas pela repetição de despesas no Financeiro são transações totalmente independentes (sem `grupoRecorrencia` ou campo equivalente) — confirmar se será necessário no futuro editar/excluir todas as parcelas de uma vez, o que exigiria um campo de vínculo entre elas.
-- Cada módulo (Agenda, Financeiro, Vendas, Atendimento) mantém seus próprios nomes de cliente mockados, que nem sempre coincidem com os nomes em `ClientesContext` — por isso alguns links "ver cliente" em dados de exemplo não encontram correspondência. Isso se resolve organicamente à medida que dados reais (com `clienteId`) substituam os mocks; não é um bug de código.
+- Agenda, Financeiro e Vendas ainda mantêm seus próprios nomes de cliente mockados (não vêm de `ClientesContext`), que nem sempre coincidem com os clientes reais agora exibidos em `/clientes` — por isso alguns links "ver cliente" em dados de exemplo desses três módulos não encontram correspondência. Atendimento não tem mais esse problema desde 2026-08-27 (usa `chats_copy.cliente_id`, que aponta para o mesmo `clientes_copy` consumido por `ClientesContext`). Isso se resolve organicamente à medida que Agenda/Financeiro/Vendas também passem a consumir dados reais; não é um bug de código.
+- **Não identificado**: em algum momento de 2026-08-27, `chats_copy` e `empresas_copy` foram esvaziadas (0 linhas) e `clientes_copy` perdeu 2 dos 3 registros que tinha, sem que nenhuma query deste backend explicasse isso. Ver Pendências em [database.md](./database.md) — o usuário vai investigar a causa antes de recriar os dados.
+- Nenhuma rota de `/clientes` ou `/chats` aplica escopo por `empresa_id` — hoje qualquer usuário (mesmo sem estar autenticado, já que não há middleware de JWT nessas rotas ainda) vê/altera todos os clientes de `clientes_copy`, de todas as empresas. Ver Pendências em [backend.md](./backend.md).
+- `Cliente.agendamentos` sempre vem vazio para clientes reais (não existe integração entre `clientes_copy` e uma tabela de agendamentos consumida pelo frontend) — o histórico de agendamentos mostrado em `DetalheClienteModal` nunca aparece preenchido para um cliente criado a partir de 2026-08-27 em diante.

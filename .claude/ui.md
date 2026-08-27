@@ -72,6 +72,7 @@ Abordagem híbrida:
 - Spread de atributos HTML nativos (`...props`) para permitir uso flexível (`Button`, `Input`).
 - Ícones sempre via `lucide-react`, importados individualmente (ex.: `import { Menu, LogOut } from "lucide-react"`).
 - Indentação do projeto usa **tabs** (não espaços) na maioria dos arquivos de `src/components` e `src/pages`; alguns arquivos (ex.: trechos de `Agenda.tsx`) usam espaços — ver [coding-standards.md](./coding-standards.md).
+- **Cursor de mãozinha global** (`src/index.css`, novo em 2026-08-27): `button:not(:disabled)`, `[role="button"]` e `input[type=checkbox|radio]:not(:disabled)` recebem `cursor: pointer` via uma regra `:where(...)` de especificidade zero — qualquer `cursor-default`/outro utilitário explícito num componente específico continua vencendo. Não é preciso adicionar `cursor-pointer` manualmente em novos botões.
 
 ## Pendências
 

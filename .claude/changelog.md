@@ -2,6 +2,50 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
+## 2026-08-27 — (não commitado)
+**Backend real: conexão com o Postgres compartilhado com o n8n, módulos Clientes/Chats, persistência do formulário de cliente, e correção de um conflito de porta com outro repositório**
+
+### Conexão com o banco e confirmação de que é compartilhado com o n8n
+- Confirmado por acesso direto (`psql`/`pg` via script Node, já que `chromium-cli`/Playwright/`psql` CLI não estavam disponíveis no ambiente): o Postgres em `easypanel.aura-ia.cloud:5432`, banco `n8n`, é **o mesmo banco físico usado pela instância n8n em produção** — 128 tabelas no schema `public`, misturando tabelas internas do n8n (`workflow_entity`, `execution_entity`, `credentials_entity`, etc.) com as tabelas de negócio deste app: `usuarios`, `empresas`, `clientes`, `chats`, `agendamentos`, `servicos`, `cargos`, `permissoes`, `recuperacao_senha`, `frases`, `instancia_por_empresa` — confirmando a suspeita já registrada como pendência em [database.md](./database.md) desde 2026-06-25.
+- O backend (`aura-meu-negocio-backend/aura-meu-negocio-backend/.env`) já apontava para esse banco desde antes desta sessão — as credenciais fornecidas pelo usuário bateram exatamente com o `.env` já commitado (ignorado pelo Git).
+
+### Regra de ouro adotada: só tocar nas tabelas `_copy`
+- Como o banco é compartilhado com conversas reais do WhatsApp em andamento, `clientes`, `chats` e `empresas` (as tabelas live) foram duplicadas — estrutura + dados, via `CREATE TABLE "<nome>_copy" (LIKE "<nome>" INCLUDING ALL)` + `INSERT INTO ... SELECT * FROM ...` — em `clientes_copy`, `chats_copy` e `empresas_copy`. `LIKE ... INCLUDING ALL` não copia foreign keys, então as tabelas `_copy` ficaram desde o início isoladas das tabelas live (nenhuma FK cruzando as duas).
+- **Depois de duas correções do usuário** (uma migração de schema aplicada por engano em `clientes` em vez de `clientes_copy`; depois a constatação de que o `GET /clientes` e o `POST /clientes` ainda liam/escreviam nas tabelas live), a regra ficou explícita e definitiva: **todo o backend deste projeto só pode ler/escrever em `clientes_copy`, `chats_copy` e `empresas_copy` — nunca nas tabelas live**. Essa regra foi registrada como memória de projeto (fora do repositório) para persistir entre sessões futuras.
+- **Achado não resolvido**: em algum momento desta sessão, `chats_copy` e `empresas_copy` foram esvaziadas (0 linhas, antes tinham 2 cada) e `clientes_copy` ficou só com o registro de teste mais recente (antes tinha 3). Não foi nenhuma query deste backend (o único `DELETE` existente sempre usa `WHERE id = $1`), e não há nada em `_copy` referenciado no outro repositório (`aura-meu-negocio`, ver abaixo). Causa ainda não identificada — usuário vai investigar e explicar antes de recriar os dados. Ver Pendências.
+
+### Novo módulo `enderecos` e colunas de dados pessoais em `clientes_copy`
+- Nova tabela `enderecos`: `id` (uuid, PK, `gen_random_uuid()`), `cep`, `rua`, `numero`, `complemento`, `bairro`, `cidade`, `estado` — todas opcionais, espelhando os campos do formulário de cliente do frontend. Tabela nova, sem equivalente live, então não precisa (nem tem) versão `_copy`.
+- `clientes_copy` ganhou `cpf_cnpj`, `email` (varchar, opcionais) e `endereco_id` (uuid, FK para `enderecos.id`).
+
+### Backend: módulos `clientes` e `chats` (novo)
+- Criados `src/modules/clientes/` e `src/modules/chats/` seguindo o mesmo padrão de 3 camadas do `auth` (routes → controller → service).
+- **`GET /clientes`**: `SELECT` em `clientes_copy` com `LEFT JOIN enderecos`, retornando nome, telefone (`numero`), `cpf_cnpj`, `email` e os 7 campos de endereço já achatados (`endereco_cep`, `endereco_rua`, ...).
+- **`POST /clientes`**: dentro de uma transação (`BEGIN`/`COMMIT`/`ROLLBACK`) — insere o endereço em `enderecos` (só se algum campo foi preenchido) e o cliente em `clientes_copy`, linkando via `endereco_id`.
+- **`DELETE /clientes/:id`**: remove de `clientes_copy` (adicionado por consistência — sem isso, um cliente "excluído" na UI voltaria a aparecer no próximo carregamento, já que só tinha sido removido do estado local do React).
+- **`GET /chats`**: `SELECT` em `chats_copy` com `LEFT JOIN clientes_copy` (trazendo o nome do cliente junto), ordenado por `data_ultima_conversa DESC NULLS LAST`. Endpoint só de leitura (não há criação/edição de chat pela UI).
+
+### Frontend: Clientes e Atendimento passam a usar dados reais
+- **`ClientesContext`**: em vez de `useState(MOCK_CLIENTES)`, busca `/clientes` num `useEffect` ao montar (`carregando: boolean` exposto no contexto). `addCliente` virou assíncrono — chama `POST /clientes` e usa o cliente real (com id do banco) retornado. `deletarCliente` remove otimisticamente do estado local e dispara `DELETE /clientes/:id` em paralelo, logando no console se falhar.
+- **`Clientes.tsx`**: mostra "Carregando clientes…" enquanto `carregando`; o `useEffect` que abre automaticamente um cliente vindo de link de outro módulo (`?clienteId=`/`?nome=`) passou a esperar `carregando` terminar antes de tentar resolver — sem isso, ele rodava contra a lista ainda vazia e descartava os parâmetros da URL antes dos dados chegarem.
+- **`NovoClienteModal`**: `handleSubmit` virou assíncrono; botão de submit mostra "Salvando…" e fica desabilitado durante a chamada; erro de rede/servidor agora aparece como mensagem no formulário em vez de fechar o modal silenciosamente como se tivesse dado certo.
+- **`Service.tsx` (Atendimento)**: o kanban de 6 colunas fixas mockadas (Início/Agendamento/Cancelamento/Pagamento/Atendimento Humano/Concluído) foi substituído por colunas **geradas dinamicamente a partir do valor real de `chats_copy.etapa`** — não havia como mapear com segurança os nomes antigos (inventados para o mockup) para os valores reais do campo `etapa` do bot (hoje só existe o valor `selecao_opcao` nos dados). Cada card do kanban ganhou link para o cliente usando `chat.cliente_id` (exato) em vez de só o nome.
+- Tipo `ClientesContext.Cliente` não mudou de forma; `Atendimento` (local a `Service.tsx`) ganhou `clienteId?: string`.
+
+### Correção de um conflito de porta com outro repositório (achado não relacionado a bug de código)
+- Ao investigar por que os dados continuavam indo para `clientes` em vez de `clientes_copy` mesmo após a correção do backend, foi descoberto que a porta 3000 (padrão do `VITE_API_URL` do frontend) estava sendo servida por um **backend de outro repositório Git completamente separado**, `C:\Users\Marcello\aura-meu-negocio\` (remoto `github.com/MarcelloWinter/aura-meu-negocio`, distinto deste `aura-meu-negocio-marmoraria`) — com seu próprio módulo `clientes` (JWT real, escopo por `empresa_id`, sem sufixo `_copy`). O frontend estava conversando com o backend errado.
+- Resolvido mudando a porta **deste** backend de 3000 → **3010** (`aura-meu-negocio-backend/.env`), e atualizando `VITE_API_URL` (`.env` e `.env.example` do frontend) e o fallback hardcoded em `src/services/api.ts` para `http://localhost:3010`. Evita depender de lembrar de parar o outro processo — os dois projetos agora coexistem sem conflito.
+- Usuário confirmou explicitamente (via pergunta direta) que `aura-meu-negocio-marmoraria` é o projeto a continuar; o outro repositório não foi tocado.
+
+### Global: cursor de "mãozinha" em elementos clicáveis
+- `src/index.css` ganhou uma regra `:where(button:not(:disabled), [role="button"], input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled)) { cursor: pointer; }` — desde a v3.3, o Tailwind não dá mais `cursor: pointer` a `<button>` por padrão, então nenhum dos ~57 `<button>` do app mostrava a mãozinha. Cards que já eram clicáveis via `<div role="button">` ou já tinham `cursor-pointer` manual (evento da Agenda, card de venda, linha de transação, card de cliente) não precisaram de mudança.
+- `:where()` foi escolhido de propósito por ter especificidade zero — importante porque `PermissaoItem` (Equipe) usa `cursor-default` explícito quando o botão é só um badge somente-leitura (sem `onClick`), e essa regra não deveria sobrescrever essa intenção. Uma primeira tentativa incluindo `label:has(input[type=checkbox])` foi descartada: a Lightning CSS (usada pelo `@tailwindcss/vite`) removia essa regra no build de produção; como labels envolvendo checkbox/radio já recebem cursor de mãozinha por padrão do navegador, não fez falta.
+
+### Validação
+- Testado ponta a ponta com `curl` direto nos endpoints (criar cliente com endereço completo, listar, excluir) e com o app rodando de verdade (`npm run dev` do zero, sem overrides manuais de porta) — confirmado bind limpo na 3010 e escrita/leitura em `clientes_copy`.
+- `tsc` (frontend e backend) e `npm run lint` sem novos erros a cada mudança.
+- Screenshots via Edge headless (`--headless --screenshot`, `chromium-cli`/Playwright continuam indisponíveis no ambiente) confirmando: `/clientes` e `/atendimento` com dados reais, deep-link `?clienteId=` abrindo o cliente certo, e nenhuma regressão visual após a mudança de cursor.
+
 ## 2026-08-23 — (não commitado)
 **Dados pessoais de cliente, repetição de despesas, módulo Configurações, navegação cliente → cadastro, logout e limpezas de UI**
 

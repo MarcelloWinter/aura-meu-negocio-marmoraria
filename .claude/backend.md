@@ -36,6 +36,9 @@ DB_PASSWORD
 JWT_SECRET
 ```
 
+- **`PORT` é `3010`** desde 2026-08-27 (antes era `3000`) — mudado porque a porta 3000 é usada pelo backend de **outro repositório Git**, `C:\Users\Marcello\aura-meu-negocio\` (`github.com/MarcelloWinter/aura-meu-negocio`), que roda separadamente na mesma máquina de desenvolvimento. `VITE_API_URL` no frontend (`aura-meu-negocio/.env` e `.env.example`) e o fallback em `src/services/api.ts` foram atualizados para `http://localhost:3010` de forma correspondente. Ver [architecture.md](./architecture.md) e Pendências.
+- `DB_NAME=n8n`, `DB_HOST=easypanel.aura-ia.cloud`: **confirmado em 2026-08-27** que é o mesmo banco físico usado pela instância n8n de produção (não uma coincidência de nome). Ver [database.md](./database.md) para a regra de quais tabelas o backend pode tocar.
+
 ## Estrutura de pastas (`src/`)
 
 ```
@@ -45,10 +48,18 @@ src/
 ├── config/
 │   └── database.ts                  # Pool de conexões PostgreSQL (node-postgres)
 ├── modules/
-│   └── auth/
-│       ├── auth.routes.ts            # Mapeamento de rotas → controllers
-│       ├── auth.controller.ts        # Camada HTTP: lê req.body, chama o service, formata a resposta
-│       └── auth.service.ts           # Lógica de negócio + queries SQL diretas
+│   ├── auth/
+│   │   ├── auth.routes.ts            # Mapeamento de rotas → controllers
+│   │   ├── auth.controller.ts        # Camada HTTP: lê req.body, chama o service, formata a resposta
+│   │   └── auth.service.ts           # Lógica de negócio + queries SQL diretas
+│   ├── clientes/                     # Novo em 2026-08-27 — CRUD (parcial) sobre clientes_copy
+│   │   ├── clientes.routes.ts
+│   │   ├── clientes.controller.ts
+│   │   └── clientes.service.ts
+│   └── chats/                        # Novo em 2026-08-27 — leitura de chats_copy
+│       ├── chats.routes.ts
+│       ├── chats.controller.ts
+│       └── chats.service.ts
 ├── middlewares/
 │   └── auth.middleware.ts            # Arquivo vazio — middleware de validação de JWT NÃO implementado
 └── utils/
@@ -68,16 +79,18 @@ Padrão arquitetural: **modularização por feature**, com camadas `routes → c
 ## Middlewares globais (`src/app.ts`)
 
 ```ts
-app.use(cors());          // CORS liberado para qualquer origem (sem allowlist configurada)
-app.use(express.json());  // parsing de JSON no body
+app.use(cors());              // CORS liberado para qualquer origem (sem allowlist configurada)
+app.use(express.json());      // parsing de JSON no body
 app.use("/auth", authRoutes);
+app.use("/clientes", clientesRoutes);  // novo em 2026-08-27
+app.use("/chats", chatsRoutes);        // novo em 2026-08-27
 ```
 
 Não há middleware de log de requisições (morgan ou similar), nem middleware de tratamento de erros global (`(err, req, res, next)`).
 
 ## Endpoints
 
-Todos sob o prefixo `/auth` (`src/modules/auth/auth.routes.ts`):
+### `/auth` (`src/modules/auth/auth.routes.ts`)
 
 | Método | Rota | Controller | Service |
 |---|---|---|---|
@@ -86,6 +99,22 @@ Todos sob o prefixo `/auth` (`src/modules/auth/auth.routes.ts`):
 | POST | `/auth/send-reset-code` | `sendResetCode` | `authService.sendResetCode(usuario)` |
 | POST | `/auth/verify-code` | `verifyCode` | `authService.verifyCode(usuario, codigo)` |
 | POST | `/auth/reset-password` | `resetPassword` | `authService.resetPassword(usuario, novaSenha)` |
+
+### `/clientes` (novo em 2026-08-27, `src/modules/clientes/`)
+
+| Método | Rota | Controller | Service | Observações |
+|---|---|---|---|---|
+| GET | `/clientes` | `listar` | `clientesService.listar()` | `SELECT` em `clientes_copy` com `LEFT JOIN enderecos`; retorna `cpf_cnpj`, `email` e os campos de endereço achatados (`endereco_cep`, `endereco_rua`, ...) |
+| POST | `/clientes` | `criar` | `clientesService.criar(dados)` | Transação: insere em `enderecos` (se algum campo de endereço veio preenchido) e depois em `clientes_copy`, linkando via `endereco_id`. Body: `{ nome, numero, cpfCnpj?, email?, endereco? }` |
+| DELETE | `/clientes/:id` | `remover` | `clientesService.remover(id)` | `DELETE FROM clientes_copy WHERE id = $1` |
+
+Nenhuma rota de `/clientes` valida JWT ou aplica escopo por `empresa_id` ainda — qualquer chamada retorna/altera todos os registros de `clientes_copy`, independente de empresa.
+
+### `/chats` (novo em 2026-08-27, `src/modules/chats/`)
+
+| Método | Rota | Controller | Service | Observações |
+|---|---|---|---|---|
+| GET | `/chats` | `listar` | `chatsService.listar()` | `SELECT` em `chats_copy` com `LEFT JOIN clientes_copy` (nome do cliente), `ORDER BY data_ultima_conversa DESC NULLS LAST`. Só leitura — não há criação/edição de chat pela UI. |
 
 Padrão de resposta de erro em todos os controllers: `try/catch`, retornando `res.status(<code>).json({ message })`, onde a mensagem vem do `Error` lançado pelo service (ou um fallback genérico).
 
@@ -144,8 +173,10 @@ Padrão de resposta de erro em todos os controllers: `try/catch`, retornando `re
 ## Pendências
 
 - Onde e como o código de verificação (`recuperacao_senha.codigo`) é gerado e persistido? Não há código neste backend que insira esse registro — provavelmente feito pelo workflow do n8n diretamente no banco. Confirmar.
-- Implementar (ou confirmar que está fora de escopo por ora) o middleware de autenticação JWT antes de adicionar rotas de negócio autenticadas.
-- Definir se `zod` (já instalado) será usado para validação de payloads de entrada — hoje não há validação de schema, apenas desestruturação direta de `req.body`.
+- Implementar (ou confirmar que está fora de escopo por ora) o middleware de autenticação JWT antes de adicionar rotas de negócio autenticadas — os módulos `clientes` e `chats` (novos em 2026-08-27) já são rotas de negócio e **ainda não passam por nenhuma autenticação/autorização**.
+- Aplicar escopo por `empresa_id` em `/clientes` e `/chats` (hoje retornam/alteram todos os registros de `clientes_copy`/`chats_copy`, sem filtrar por empresa) — o outro repositório (`aura-meu-negocio`, ver [architecture.md](./architecture.md)) já resolve isso no módulo equivalente dele, pode servir de referência.
+- Definir se `zod` (já instalado) será usado para validação de payloads de entrada — hoje não há validação de schema, apenas desestruturação direta de `req.body` (inclusive em `POST /clientes`).
 - Confirmar política de CORS para produção (hoje `cors()` libera todas as origens).
 - Confirmar se há necessidade de logging estruturado/observabilidade (hoje só `console.log`/`console.error`).
-- Confirmar a estratégia de migrations/versionamento de schema do banco (não há pasta de migrations neste repositório — ver [database.md](./database.md)).
+- Confirmar a estratégia de migrations/versionamento de schema do banco (não há pasta de migrations neste repositório — a tabela `enderecos` e as colunas novas em `clientes_copy`, de 2026-08-27, foram aplicadas via script Node ad-hoc, não commitado). Ver [database.md](./database.md).
+- Decidir o que fazer com `chats_copy`/`empresas_copy`/`clientes_copy` esvaziadas por uma causa ainda não identificada em 2026-08-27 — ver Pendências em [database.md](./database.md).
