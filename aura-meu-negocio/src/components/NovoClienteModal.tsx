@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Input } from "./Input";
 import { Button } from "./Button";
+import { getApiErrorMessage } from "../services/api";
 import { useClientes, CORES_AVATAR_CLIENTES } from "../contexts/ClientesContext";
 import type { Cliente } from "../contexts/ClientesContext";
 
@@ -33,6 +34,8 @@ export function NovoClienteModal({
 	const [email, setEmail] = useState("");
 	const [endereco, setEndereco] = useState(ENDERECO_VAZIO);
 	const [errors, setErrors] = useState({ nome: "", telefone: "" });
+	const [salvando, setSalvando] = useState(false);
+	const [erroSalvar, setErroSalvar] = useState("");
 
 	function setCampoEndereco(campo: keyof typeof ENDERECO_VAZIO, valor: string) {
 		setEndereco((prev) => ({ ...prev, [campo]: valor }));
@@ -45,6 +48,7 @@ export function NovoClienteModal({
 		setEmail("");
 		setEndereco(ENDERECO_VAZIO);
 		setErrors({ nome: "", telefone: "" });
+		setErroSalvar("");
 	}
 
 	function handleClose() {
@@ -52,7 +56,7 @@ export function NovoClienteModal({
 		onClose();
 	}
 
-	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		const novosErros = {
 			nome: nome.trim() ? "" : "Informe o nome do cliente.",
@@ -67,19 +71,27 @@ export function NovoClienteModal({
 				.filter(([, valor]) => valor),
 		);
 
-		const novo = addCliente({
-			nome: nome.trim(),
-			telefone: telefone.trim(),
-			cpfCnpj: cpfCnpj.trim() || undefined,
-			email: email.trim() || undefined,
-			endereco: Object.keys(enderecoPreenchido).length > 0 ? enderecoPreenchido : undefined,
-			avatarCor: CORES_AVATAR_CLIENTES[clientes.length % CORES_AVATAR_CLIENTES.length],
-			agendamentos: [],
-		});
+		setSalvando(true);
+		setErroSalvar("");
+		try {
+			const novo = await addCliente({
+				nome: nome.trim(),
+				telefone: telefone.trim(),
+				cpfCnpj: cpfCnpj.trim() || undefined,
+				email: email.trim() || undefined,
+				endereco: Object.keys(enderecoPreenchido).length > 0 ? enderecoPreenchido : undefined,
+				avatarCor: CORES_AVATAR_CLIENTES[clientes.length % CORES_AVATAR_CLIENTES.length],
+				agendamentos: [],
+			});
 
-		onCreated?.(novo);
-		limpar();
-		onClose();
+			onCreated?.(novo);
+			limpar();
+			onClose();
+		} catch (err) {
+			setErroSalvar(getApiErrorMessage(err, "Não foi possível salvar o cliente."));
+		} finally {
+			setSalvando(false);
+		}
 	}
 
 	return (
@@ -166,12 +178,19 @@ export function NovoClienteModal({
 						</div>
 					</div>
 				</div>
+				{erroSalvar && <p className="text-sm text-red-500">{erroSalvar}</p>}
 				<div className="flex justify-end gap-3 pt-2">
-					<Button type="button" variant="secondary" className="!w-auto px-5" onClick={handleClose}>
+					<Button
+						type="button"
+						variant="secondary"
+						className="!w-auto px-5"
+						onClick={handleClose}
+						disabled={salvando}
+					>
 						Cancelar
 					</Button>
-					<Button type="submit" className="!w-auto px-5">
-						Adicionar
+					<Button type="submit" className="!w-auto px-5" disabled={salvando}>
+						{salvando ? "Salvando…" : "Adicionar"}
 					</Button>
 				</div>
 			</form>

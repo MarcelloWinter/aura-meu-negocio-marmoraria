@@ -221,7 +221,7 @@ function DetalheClienteModal({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function Clientes() {
-	const { clientes, deletarCliente: deletarClienteCtx } = useClientes();
+	const { clientes, carregando, deletarCliente: deletarClienteCtx } = useClientes();
 	const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
 	const [modalAberto, setModalAberto] = useState(false);
 	const [busca, setBusca] = useState("");
@@ -232,6 +232,7 @@ export function Clientes() {
 		const clienteId = searchParams.get("clienteId");
 		const nomeBusca = searchParams.get("nome");
 		if (!clienteId && !nomeBusca) return;
+		if (carregando) return; // espera os clientes carregarem antes de tentar resolver o link
 
 		const alvo = clienteId
 			? clientes.find((c) => c.id === clienteId)
@@ -240,7 +241,7 @@ export function Clientes() {
 		if (alvo) setClienteSelecionado(alvo);
 		if (nomeBusca && !clienteId) setBusca(nomeBusca);
 		setSearchParams({}, { replace: true });
-	}, [searchParams, clientes, setSearchParams]);
+	}, [searchParams, clientes, carregando, setSearchParams]);
 
 	const clientesFiltrados = clientes.filter(
 		(c) =>
@@ -293,7 +294,11 @@ export function Clientes() {
 					</div>
 
 					{/* Grid ou estado vazio */}
-					{clientesFiltrados.length === 0 ? (
+					{carregando ? (
+						<div className="flex flex-col items-center justify-center py-20 text-center">
+							<p className="text-sm text-slate-500">Carregando clientes…</p>
+						</div>
+					) : clientesFiltrados.length === 0 ? (
 						<div className="flex flex-col items-center justify-center py-20 text-center">
 							<p className="text-sm text-slate-500">
 								{busca

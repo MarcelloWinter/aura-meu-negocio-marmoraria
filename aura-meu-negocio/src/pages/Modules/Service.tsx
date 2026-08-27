@@ -1,13 +1,17 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { format, isToday } from "date-fns";
 import { ChevronRight, MessageCircle } from "lucide-react";
 
 import { DashboardLayout } from "../../components/DashboardLayout";
+import { api, getApiErrorMessage } from "../../services/api";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type Atendimento = {
 	id: string;
 	nome: string;
+	clienteId?: string;
 	hora: string;
 	mensagem: string;
 	avatarCor: string;
@@ -18,6 +22,16 @@ type Coluna = {
 	titulo: string;
 	pontoCor: string;
 	atendimentos: Atendimento[];
+};
+
+type ChatApi = {
+	id: string;
+	numero: string;
+	etapa: string | null;
+	data_ultima_conversa: string | null;
+	ultima_mensagem: string | null;
+	cliente_id: string | null;
+	cliente_nome: string | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -31,129 +45,71 @@ function iniciais(nome: string): string {
 		.join("");
 }
 
-// ─── Dados mockados ───────────────────────────────────────────────────────────
-
-const COLUNAS_INICIAIS: Coluna[] = [
-	{
-		id: "inicio",
-		titulo: "Início",
-		pontoCor: "bg-slate-400",
-		atendimentos: [
-			{
-				id: "a1",
-				nome: "Lucas Andrade",
-				hora: "10:05",
-				mensagem: "Olá! Gostaria de saber mais sobre os serviços de vocês.",
-				avatarCor: "bg-cyan-400",
-			},
-			{
-				id: "a2",
-				nome: "Beatriz Souza",
-				hora: "09:40",
-				mensagem: "Bom dia! Preciso de um orçamento urgente.",
-				avatarCor: "bg-violet-400",
-			},
-		],
-	},
-	{
-		id: "agendamento",
-		titulo: "Agendamento",
-		pontoCor: "bg-blue-500",
-		atendimentos: [
-			{
-				id: "a3",
-				nome: "Marina Lima",
-				hora: "09:55",
-				mensagem: "Pode ser às 14h de sexta-feira?",
-				avatarCor: "bg-emerald-400",
-			},
-			{
-				id: "a4",
-				nome: "Carlos Mendes",
-				hora: "10:22",
-				mensagem: "Confirmo para amanhã às 10h.",
-				avatarCor: "bg-amber-400",
-			},
-		],
-	},
-	{
-		id: "cancelamento",
-		titulo: "Cancelamento",
-		pontoCor: "bg-red-400",
-		atendimentos: [
-			{
-				id: "a5",
-				nome: "Fernanda S.",
-				hora: "Ontem",
-				mensagem: "Preciso cancelar, tive um imprevisto.",
-				avatarCor: "bg-rose-400",
-			},
-		],
-	},
-	{
-		id: "pagamento",
-		titulo: "Pagamento",
-		pontoCor: "bg-amber-500",
-		atendimentos: [
-			{
-				id: "a6",
-				nome: "Pedro Lima",
-				hora: "08:30",
-				mensagem: "Pode me enviar o Pix?",
-				avatarCor: "bg-blue-400",
-			},
-			{
-				id: "a7",
-				nome: "Rafael N.",
-				hora: "Ontem",
-				mensagem: "Aguardando o link de pagamento.",
-				avatarCor: "bg-slate-400",
-			},
-		],
-	},
-	{
-		id: "humano",
-		titulo: "Atendimento Humano",
-		pontoCor: "bg-violet-500",
-		atendimentos: [
-			{
-				id: "a8",
-				nome: "Ana Costa",
-				hora: "11:45",
-				mensagem: "Tenho dúvidas que o bot não conseguiu responder.",
-				avatarCor: "bg-cyan-500",
-			},
-		],
-	},
-	{
-		id: "concluido",
-		titulo: "Concluído",
-		pontoCor: "bg-emerald-500",
-		atendimentos: [
-			{
-				id: "a9",
-				nome: "Júlia M.",
-				hora: "Ontem",
-				mensagem: "Serviço incrível, voltarei em breve!",
-				avatarCor: "bg-emerald-400",
-			},
-			{
-				id: "a10",
-				nome: "Roberto K.",
-				hora: "Seg",
-				mensagem: "Ótimo atendimento, recomendo.",
-				avatarCor: "bg-violet-400",
-			},
-			{
-				id: "a11",
-				nome: "Patrícia N.",
-				hora: "Seg",
-				mensagem: "Muito profissional, adorei!",
-				avatarCor: "bg-amber-400",
-			},
-		],
-	},
+const CORES_AVATAR_ATENDIMENTO = [
+	"bg-cyan-400",
+	"bg-violet-400",
+	"bg-emerald-400",
+	"bg-amber-400",
+	"bg-rose-400",
+	"bg-blue-400",
+	"bg-slate-400",
 ];
+
+const CORES_COLUNA = [
+	"bg-slate-400",
+	"bg-blue-500",
+	"bg-amber-500",
+	"bg-violet-500",
+	"bg-emerald-500",
+	"bg-red-400",
+	"bg-cyan-500",
+];
+
+const SEM_ETAPA = "__sem_etapa__";
+
+function formatarHora(iso: string | null): string {
+	if (!iso) return "—";
+	const data = new Date(iso);
+	return isToday(data) ? format(data, "HH:mm") : format(data, "dd/MM");
+}
+
+function humanizarEtapa(etapa: string): string {
+	return etapa
+		.split("_")
+		.filter(Boolean)
+		.map((p) => p[0].toUpperCase() + p.slice(1))
+		.join(" ");
+}
+
+// Agrupa os chats reais pela etapa em que estão no fluxo — não há um conjunto
+// fixo de etapas definido no banco, então as colunas refletem o que existe.
+function montarColunas(chats: ChatApi[]): Coluna[] {
+	const porEtapa = new Map<string, Atendimento[]>();
+
+	chats.forEach((chat, index) => {
+		const chave = chat.etapa ?? SEM_ETAPA;
+
+		const atendimento: Atendimento = {
+			id: chat.id,
+			nome: chat.cliente_nome ?? chat.numero,
+			clienteId: chat.cliente_id ?? undefined,
+			hora: formatarHora(chat.data_ultima_conversa),
+			mensagem: chat.ultima_mensagem ?? "",
+			avatarCor: CORES_AVATAR_ATENDIMENTO[index % CORES_AVATAR_ATENDIMENTO.length],
+		};
+
+		const lista = porEtapa.get(chave) ?? [];
+		lista.push(atendimento);
+		porEtapa.set(chave, lista);
+	});
+
+	return Array.from(porEtapa.entries()).map(([chave, atendimentos], index) => ({
+		id: chave,
+		titulo: chave === SEM_ETAPA ? "Sem etapa" : humanizarEtapa(chave),
+		pontoCor: CORES_COLUNA[index % CORES_COLUNA.length],
+		atendimentos,
+	}));
+}
 
 // ─── Card de atendimento ──────────────────────────────────────────────────────
 
@@ -161,7 +117,10 @@ function AtendimentoCard({ atendimento }: { atendimento: Atendimento }) {
 	const navigate = useNavigate();
 
 	function verCliente() {
-		navigate(`/clientes?nome=${encodeURIComponent(atendimento.nome)}`);
+		const params = atendimento.clienteId
+			? `clienteId=${encodeURIComponent(atendimento.clienteId)}`
+			: `nome=${encodeURIComponent(atendimento.nome)}`;
+		navigate(`/clientes?${params}`);
 	}
 
 	return (
@@ -196,6 +155,30 @@ function AtendimentoCard({ atendimento }: { atendimento: Atendimento }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function Service() {
+	const [colunas, setColunas] = useState<Coluna[]>([]);
+	const [carregando, setCarregando] = useState(true);
+
+	useEffect(() => {
+		let cancelado = false;
+
+		api
+			.get<ChatApi[]>("/chats")
+			.then((res) => {
+				if (cancelado) return;
+				setColunas(montarColunas(res.data));
+			})
+			.catch((err) => {
+				console.error("Falha ao carregar atendimentos:", getApiErrorMessage(err, "Erro desconhecido"));
+			})
+			.finally(() => {
+				if (!cancelado) setCarregando(false);
+			});
+
+		return () => {
+			cancelado = true;
+		};
+	}, []);
+
 	return (
 		<DashboardLayout>
 			<div className="flex h-full flex-col">
@@ -213,41 +196,46 @@ export function Service() {
 
 				{/* KANBAN */}
 				<div className="flex-1 overflow-x-auto p-4 sm:p-6">
-					<div className="flex h-full gap-4" style={{ minWidth: "max-content" }}>
-						{COLUNAS_INICIAIS.map((coluna) => (
-							<div
-								key={coluna.id}
-								className="flex w-72 flex-shrink-0 flex-col rounded-2xl bg-slate-50 p-4"
-							>
-								{/* Cabeçalho da coluna */}
-								<div className="mb-4 flex items-center gap-2.5">
-									<div className={`h-2 w-2 shrink-0 rounded-full ${coluna.pontoCor}`} />
-									<h2 className="flex-1 text-sm font-semibold text-slate-700">
-										{coluna.titulo}
-									</h2>
-									<span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-500 shadow-sm">
-										{coluna.atendimentos.length}
-									</span>
-								</div>
+					{carregando ? (
+						<p className="py-20 text-center text-sm text-slate-500">Carregando atendimentos…</p>
+					) : colunas.length === 0 ? (
+						<p className="py-20 text-center text-sm text-slate-500">Nenhum atendimento encontrado.</p>
+					) : (
+						<div className="flex h-full gap-4" style={{ minWidth: "max-content" }}>
+							{colunas.map((coluna) => (
+								<div
+									key={coluna.id}
+									className="flex w-72 flex-shrink-0 flex-col rounded-2xl bg-slate-50 p-4"
+								>
+									{/* Cabeçalho da coluna */}
+									<div className="mb-4 flex items-center gap-2.5">
+										<div className={`h-2 w-2 shrink-0 rounded-full ${coluna.pontoCor}`} />
+										<h2 className="flex-1 text-sm font-semibold text-slate-700">
+											{coluna.titulo}
+										</h2>
+										<span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-500 shadow-sm">
+											{coluna.atendimentos.length}
+										</span>
+									</div>
 
-								{/* Cards */}
-								<div className="flex flex-col gap-3 overflow-y-auto">
-									{coluna.atendimentos.length === 0 ? (
-										<p className="py-6 text-center text-xs text-slate-400">
-											Nenhum atendimento
-										</p>
-									) : (
-										coluna.atendimentos.map((a) => (
-											<AtendimentoCard key={a.id} atendimento={a} />
-										))
-									)}
+									{/* Cards */}
+									<div className="flex flex-col gap-3 overflow-y-auto">
+										{coluna.atendimentos.length === 0 ? (
+											<p className="py-6 text-center text-xs text-slate-400">
+												Nenhum atendimento
+											</p>
+										) : (
+											coluna.atendimentos.map((a) => (
+												<AtendimentoCard key={a.id} atendimento={a} />
+											))
+										)}
+									</div>
 								</div>
-							</div>
-						))}
-					</div>
+							))}
+						</div>
+					)}
 				</div>
 			</div>
-
 		</DashboardLayout>
 	);
 }

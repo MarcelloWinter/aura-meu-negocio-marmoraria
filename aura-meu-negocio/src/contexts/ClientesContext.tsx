@@ -1,5 +1,7 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+
+import { api, getApiErrorMessage } from "../services/api";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -46,93 +48,114 @@ export const CORES_AVATAR_CLIENTES = [
 	"bg-slate-400",
 ];
 
-const MOCK_CLIENTES: Cliente[] = [
-	{
-		id: "cl1",
-		nome: "Ana Beatriz",
-		telefone: "(11) 99842-1234",
-		avatarCor: "bg-cyan-400",
-		agendamentos: [
-			{ id: "ag1", servico: "Corte feminino", data: "05/07/2026", horario: "14:00", status: "concluido" },
-			{ id: "ag2", servico: "Manicure", data: "20/06/2026", horario: "10:00", status: "concluido" },
-			{ id: "ag3", servico: "Avaliação", data: "25/07/2026", horario: "09:30", status: "pendente" },
-		],
-	},
-	{
-		id: "cl2",
-		nome: "Carlos Mendes",
-		telefone: "(21) 98765-4321",
-		avatarCor: "bg-amber-400",
-		agendamentos: [
-			{ id: "ag4", servico: "Corte masculino", data: "10/07/2026", horario: "10:00", status: "concluido" },
-			{ id: "ag5", servico: "Barba", data: "10/07/2026", horario: "10:30", status: "concluido" },
-			{ id: "ag6", servico: "Corte masculino", data: "28/07/2026", horario: "11:00", status: "pendente" },
-		],
-	},
-	{
-		id: "cl3",
-		nome: "Marina Lima",
-		telefone: "(31) 97654-3210",
-		avatarCor: "bg-emerald-400",
-		agendamentos: [
-			{ id: "ag7", servico: "Manicure", data: "15/07/2026", horario: "09:00", status: "concluido" },
-			{ id: "ag8", servico: "Manicure", data: "22/07/2026", horario: "09:00", status: "cancelado" },
-		],
-	},
-	{
-		id: "cl4",
-		nome: "Rafael Nunes",
-		telefone: "(11) 91234-5678",
-		avatarCor: "bg-violet-400",
-		agendamentos: [
-			{ id: "ag9", servico: "Barba", data: "08/07/2026", horario: "08:30", status: "concluido" },
-			{ id: "ag10", servico: "Corte masculino", data: "08/07/2026", horario: "09:00", status: "concluido" },
-		],
-	},
-	{
-		id: "cl5",
-		nome: "Patrícia Nogueira",
-		telefone: "(41) 99321-8765",
-		avatarCor: "bg-rose-400",
-		agendamentos: [
-			{ id: "ag11", servico: "Corte feminino", data: "12/07/2026", horario: "15:00", status: "cancelado" },
-			{ id: "ag12", servico: "Corte feminino", data: "26/07/2026", horario: "15:00", status: "pendente" },
-		],
-	},
-	{
-		id: "cl6",
-		nome: "Lucas Andrade",
-		telefone: "(61) 98888-7777",
-		avatarCor: "bg-blue-400",
+// ─── Integração com a API ───────────────────────────────────────────────────────
+
+type ClienteApi = {
+	id: string;
+	nome: string;
+	numero: string;
+	empresa_id: string | null;
+	cpf_cnpj: string | null;
+	email: string | null;
+	endereco_cep: string | null;
+	endereco_rua: string | null;
+	endereco_numero: string | null;
+	endereco_complemento: string | null;
+	endereco_bairro: string | null;
+	endereco_cidade: string | null;
+	endereco_estado: string | null;
+};
+
+function mapEnderecoApi(row: ClienteApi): Endereco | undefined {
+	const endereco: Endereco = {
+		cep: row.endereco_cep ?? undefined,
+		rua: row.endereco_rua ?? undefined,
+		numero: row.endereco_numero ?? undefined,
+		complemento: row.endereco_complemento ?? undefined,
+		bairro: row.endereco_bairro ?? undefined,
+		cidade: row.endereco_cidade ?? undefined,
+		estado: row.endereco_estado ?? undefined,
+	};
+	return Object.values(endereco).some(Boolean) ? endereco : undefined;
+}
+
+function mapClienteApi(row: ClienteApi, index: number): Cliente {
+	return {
+		id: row.id,
+		nome: row.nome,
+		telefone: row.numero,
+		cpfCnpj: row.cpf_cnpj ?? undefined,
+		email: row.email ?? undefined,
+		endereco: mapEnderecoApi(row),
+		avatarCor: CORES_AVATAR_CLIENTES[index % CORES_AVATAR_CLIENTES.length],
 		agendamentos: [],
-	},
-];
+	};
+}
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 type ClientesContextType = {
 	clientes: Cliente[];
-	addCliente: (dados: Omit<Cliente, "id">) => Cliente;
+	carregando: boolean;
+	addCliente: (dados: Omit<Cliente, "id">) => Promise<Cliente>;
 	deletarCliente: (id: string) => void;
 };
 
 const ClientesContext = createContext<ClientesContextType | null>(null);
 
 export function ClientesProvider({ children }: { children: ReactNode }) {
-	const [clientes, setClientes] = useState<Cliente[]>(MOCK_CLIENTES);
+	const [clientes, setClientes] = useState<Cliente[]>([]);
+	const [carregando, setCarregando] = useState(true);
 
-	function addCliente(dados: Omit<Cliente, "id">): Cliente {
-		const novo: Cliente = { id: crypto.randomUUID(), ...dados };
+	useEffect(() => {
+		let cancelado = false;
+
+		api
+			.get<ClienteApi[]>("/clientes")
+			.then((res) => {
+				if (cancelado) return;
+				setClientes(res.data.map(mapClienteApi));
+			})
+			.catch((err) => {
+				console.error("Falha ao carregar clientes:", getApiErrorMessage(err, "Erro desconhecido"));
+			})
+			.finally(() => {
+				if (!cancelado) setCarregando(false);
+			});
+
+		return () => {
+			cancelado = true;
+		};
+	}, []);
+
+	async function addCliente(dados: Omit<Cliente, "id">): Promise<Cliente> {
+		const res = await api.post<ClienteApi>("/clientes", {
+			nome: dados.nome,
+			numero: dados.telefone,
+			cpfCnpj: dados.cpfCnpj,
+			email: dados.email,
+			endereco: dados.endereco,
+		});
+
+		const novo: Cliente = {
+			...mapClienteApi(res.data, clientes.length),
+			avatarCor: dados.avatarCor,
+		};
+
 		setClientes((prev) => [...prev, novo]);
 		return novo;
 	}
 
 	function deletarCliente(id: string) {
 		setClientes((prev) => prev.filter((c) => c.id !== id));
+
+		api.delete(`/clientes/${id}`).catch((err) => {
+			console.error("Falha ao excluir cliente:", getApiErrorMessage(err, "Erro desconhecido"));
+		});
 	}
 
 	return (
-		<ClientesContext.Provider value={{ clientes, addCliente, deletarCliente }}>
+		<ClientesContext.Provider value={{ clientes, carregando, addCliente, deletarCliente }}>
 			{children}
 		</ClientesContext.Provider>
 	);
