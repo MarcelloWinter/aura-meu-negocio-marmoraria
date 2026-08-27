@@ -23,3 +23,14 @@ body {
 	color: var(--text);
 	font-family: Inter, system-ui, sans-serif;
 }
+
+/* :where() mantém especificidade zero, então qualquer classe cursor-* explícita
+   (ex.: cursor-default em algo não clicável) sempre prevalece sobre esta regra. */
+:where(
+	button:not(:disabled),
+	[role="button"],
+	input[type="checkbox"]:not(:disabled),
+	input[type="radio"]:not(:disabled)
+) {
+	cursor: pointer;
+}
