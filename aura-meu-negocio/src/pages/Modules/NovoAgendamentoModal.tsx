@@ -7,15 +7,10 @@ import { Textarea } from "../../ui/Textarea";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
 import { ClienteSelect } from "../../components/ClienteSelect";
+import { getApiErrorMessage } from "../../services/api";
 import type { Cliente } from "../../contexts/ClientesContext";
 
-import type { Evento, Recorrencia } from "./Agenda";
-
-const PROFISSIONAIS: SelectOption[] = [
-	{ label: "Júlia", value: "Júlia" },
-	{ label: "Rafa", value: "Rafa" },
-	{ label: "Você", value: "Você" },
-];
+import type { Recorrencia, Profissional, NovoAgendamentoInput } from "./Agenda";
 
 const DURACAO_PADRAO = 60;
 
@@ -25,8 +20,6 @@ const COR_AVATAR_POR_PROFISSIONAL: Record<string, string> = {
 	Você: "bg-emerald-100 text-emerald-700",
 };
 const COR_AVATAR_PADRAO = "bg-slate-100 text-slate-600";
-
-const COR_EVENTO_PADRAO = "bg-purple-100 border-purple-500";
 
 const OPCOES_RECORRENCIA: SelectOption[] = [
 	{ label: "Não repete", value: "nenhuma" },
@@ -95,16 +88,18 @@ const ERROS_VAZIOS = {
 interface NovoAgendamentoModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onSave: (evento: Evento) => void;
+	onSave: (dados: NovoAgendamentoInput) => Promise<void>;
+	profissionais: Profissional[];
 }
 
 export function NovoAgendamentoModal({
 	isOpen,
 	onClose,
 	onSave,
+	profissionais,
 }: NovoAgendamentoModalProps) {
 	const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
-	const [profissional, setProfissional] = useState("");
+	const [profissionalId, setProfissionalId] = useState("");
 	const [data, setData] = useState("");
 	const [horarioInicio, setHorarioInicio] = useState("");
 	const [horarioFim, setHorarioFim] = useState("");
@@ -112,6 +107,13 @@ export function NovoAgendamentoModal({
 	const [observacoes, setObservacoes] = useState("");
 
 	const [errors, setErrors] = useState(ERROS_VAZIOS);
+	const [salvando, setSalvando] = useState(false);
+	const [erroSalvar, setErroSalvar] = useState("");
+
+	const opcoesProfissional: SelectOption[] = profissionais.map((p) => ({
+		label: p.nome,
+		value: p.id,
+	}));
 
 	function recalcularFim(inicio: string) {
 		if (!inicio) return;
@@ -125,13 +127,14 @@ export function NovoAgendamentoModal({
 
 	function limparFormulario() {
 		setClienteSelecionado(null);
-		setProfissional("");
+		setProfissionalId("");
 		setData("");
 		setHorarioInicio("");
 		setHorarioFim("");
 		setRecorrencia("nenhuma");
 		setObservacoes("");
 		setErrors(ERROS_VAZIOS);
+		setErroSalvar("");
 	}
 
 	function handleClose() {
@@ -139,7 +142,7 @@ export function NovoAgendamentoModal({
 		onClose();
 	}
 
-	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 
 		const fimDepoisDoInicio =
@@ -147,9 +150,11 @@ export function NovoAgendamentoModal({
 				? timeToMinutes(horarioFim) > timeToMinutes(horarioInicio)
 				: true;
 
+		const profissionalSelecionado = profissionais.find((p) => p.id === profissionalId);
+
 		const novosErros = {
 			cliente: clienteSelecionado ? "" : "Selecione ou cadastre um cliente.",
-			profissional: profissional ? "" : "Selecione o profissional.",
+			profissional: profissionalSelecionado ? "" : "Selecione o profissional.",
 			data: data ? "" : "Informe a data.",
 			horarioInicio: horarioInicio ? "" : "Informe o início.",
 			horarioFim: !horarioFim
@@ -165,24 +170,25 @@ export function NovoAgendamentoModal({
 			return;
 		}
 
-		const [hInicio, mInicio] = horarioInicio.split(":").map(Number);
-		const duracaoMinutos =
-			timeToMinutes(horarioFim) - timeToMinutes(horarioInicio);
+		setSalvando(true);
+		setErroSalvar("");
+		try {
+			await onSave({
+				cliente: { id: clienteSelecionado!.id, nome: clienteSelecionado!.nome },
+				profissional: profissionalSelecionado!,
+				data,
+				horaInicio: horarioInicio,
+				horaFim: horarioFim,
+				recorrencia,
+				observacoes: observacoes.trim() || undefined,
+			});
 
-		onSave({
-			id: crypto.randomUUID(),
-			nome: clienteSelecionado!.nome,
-			clienteId: clienteSelecionado!.id,
-			profissional,
-			data: new Date(`${data}T00:00:00`),
-			hora: hInicio + mInicio / 60,
-			duracao: duracaoMinutos / 60,
-			color: COR_EVENTO_PADRAO,
-			observacoes: observacoes.trim() || undefined,
-			recorrencia,
-		});
-
-		limparFormulario();
+			limparFormulario();
+		} catch (err) {
+			setErroSalvar(getApiErrorMessage(err, "Não foi possível salvar o agendamento."));
+		} finally {
+			setSalvando(false);
+		}
 	}
 
 	return (
@@ -197,9 +203,9 @@ export function NovoAgendamentoModal({
 				<Select
 					label="Profissional"
 					placeholder="Selecione"
-					value={profissional}
-					onChange={setProfissional}
-					options={PROFISSIONAIS}
+					value={profissionalId}
+					onChange={setProfissionalId}
+					options={opcoesProfissional}
 					renderOption={renderProfissional}
 					error={errors.profissional}
 				/>
@@ -252,18 +258,20 @@ export function NovoAgendamentoModal({
 					onChange={(e) => setObservacoes(e.target.value)}
 				/>
 
+				{erroSalvar && <p className="text-sm text-red-500">{erroSalvar}</p>}
 				<div className="flex justify-end gap-3 pt-2">
 					<Button
 						type="button"
 						variant="secondary"
 						className="!w-auto px-5"
 						onClick={handleClose}
+						disabled={salvando}
 					>
 						Cancelar
 					</Button>
 
-					<Button type="submit" className="!w-auto px-5">
-						Salvar
+					<Button type="submit" className="!w-auto px-5" disabled={salvando}>
+						{salvando ? "Salvando…" : "Salvar"}
 					</Button>
 				</div>
 			</form>

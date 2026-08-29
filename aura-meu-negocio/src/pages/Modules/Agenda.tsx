@@ -30,6 +30,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "../../components/DashboardLayout";
 import { NovoAgendamentoModal } from "./NovoAgendamentoModal";
 import { FechaHorarioModal } from "./FechaHorarioModal";
+import { api, getApiErrorMessage } from "../../services/api";
 
 // ─── Tipos exportados ─────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ export type Evento = {
 	nome: string;
 	clienteId?: string;
 	profissional: string;
+	profissionalId?: string;
 	data: Date;
 	hora: number;
 	duracao: number;
@@ -61,6 +63,21 @@ export type Bloqueio = {
 	recorrencia: Recorrencia;
 };
 
+export type Profissional = {
+	id: string;
+	nome: string;
+};
+
+export type NovoAgendamentoInput = {
+	cliente: { id: string; nome: string };
+	profissional: Profissional;
+	data: string;
+	horaInicio: string;
+	horaFim: string;
+	recorrencia: Recorrencia;
+	observacoes?: string;
+};
+
 // ─── Constantes e helpers ─────────────────────────────────────────────────────
 
 type View = "dia" | "semana" | "mes";
@@ -68,8 +85,6 @@ type View = "dia" | "semana" | "mes";
 const HOUR_HEIGHT = 64;
 const HOURS = Array.from({ length: 24 }).map((_, i) => i);
 const DIAS_SEMANA_ABREV = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-
-const PROFISSIONAIS = ["Júlia", "Rafa", "Você"];
 
 const COR_AVATAR_PROFISSIONAL: Record<string, string> = {
 	Júlia: "bg-violet-100 text-violet-700",
@@ -157,38 +172,49 @@ function bloqueioAplicaNoDia(bloqueio: Bloqueio, dia: Date): boolean {
 	return aplicaNoDia(bloqueio.data, bloqueio.recorrencia, dia);
 }
 
-function eventosIniciais(): Evento[] {
-	const inicioSemanaAtual = startOfWeek(new Date(), { weekStartsOn: 1 });
+// ─── Integração com a API ───────────────────────────────────────────────────────
 
-	return [
-		{
-			id: "1",
-			nome: "Ana Costa",
-			profissional: "Júlia",
-			data: addDays(inicioSemanaAtual, 0),
-			hora: 9,
-			duracao: 1,
-			color: "bg-blue-100 border-blue-500",
-		},
-		{
-			id: "2",
-			nome: "Pedro Lima",
-			profissional: "Rafa",
-			data: addDays(inicioSemanaAtual, 2),
-			hora: 10,
-			duracao: 1,
-			color: "bg-green-100 border-green-500",
-		},
-		{
-			id: "3",
-			nome: "Lucas A.",
-			profissional: "Você",
-			data: addDays(inicioSemanaAtual, 4),
-			hora: 9,
-			duracao: 1,
-			color: "bg-cyan-100 border-cyan-500",
-		},
-	];
+const COR_EVENTO_PADRAO = "bg-purple-100 border-purple-500";
+
+type AgendamentoApi = {
+	id: string;
+	cliente_id: string | null;
+	cliente_nome: string | null;
+	profissional_id: string | null;
+	profissional_nome: string | null;
+	data: string; // "YYYY-MM-DD"
+	hora_inicio: string; // "HH:MM:SS"
+	hora_fim: string;
+	etapa: string | null;
+	pago: boolean;
+	observacoes: string | null;
+	recorrencia: string | null;
+};
+
+type UsuarioApi = {
+	id: string;
+	nome: string;
+};
+
+function horaParaFracao(hora: string): number {
+	const [h, m] = hora.split(":").map(Number);
+	return h + m / 60;
+}
+
+function mapAgendamentoApi(row: AgendamentoApi): Evento {
+	return {
+		id: row.id,
+		nome: row.cliente_nome ?? "Cliente",
+		clienteId: row.cliente_id ?? undefined,
+		profissional: row.profissional_nome ?? "—",
+		profissionalId: row.profissional_id ?? undefined,
+		data: new Date(`${row.data}T00:00:00`),
+		hora: horaParaFracao(row.hora_inicio),
+		duracao: horaParaFracao(row.hora_fim) - horaParaFracao(row.hora_inicio),
+		color: COR_EVENTO_PADRAO,
+		observacoes: row.observacoes ?? undefined,
+		recorrencia: (row.recorrencia as Recorrencia | null) ?? "nenhuma",
+	};
 }
 
 // ─── Componentes de renderização ──────────────────────────────────────────────
@@ -734,9 +760,11 @@ function DetalheEventoModal({
 function FiltroProfissional({
 	value,
 	onChange,
+	profissionais,
 }: {
 	value: string;
 	onChange: (v: string) => void;
+	profissionais: string[];
 }) {
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
@@ -791,7 +819,7 @@ function FiltroProfissional({
 						Todos
 					</button>
 
-					{PROFISSIONAIS.map((p) => (
+					{profissionais.map((p) => (
 						<button
 							key={p}
 							type="button"
@@ -826,12 +854,84 @@ const VIEW_LABELS: Record<View, string> = {
 export function Agenda() {
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const [view, setView] = useState<View>("semana");
-	const [eventos, setEventos] = useState<Evento[]>(eventosIniciais);
+	const [eventos, setEventos] = useState<Evento[]>([]);
+	const [carregandoEventos, setCarregandoEventos] = useState(true);
 	const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
+
+	useEffect(() => {
+		let cancelado = false;
+
+		api
+			.get<AgendamentoApi[]>("/agendamentos")
+			.then((res) => {
+				if (cancelado) return;
+				setEventos(res.data.map(mapAgendamentoApi));
+			})
+			.catch((err) => {
+				console.error("Falha ao carregar agendamentos:", getApiErrorMessage(err, "Erro desconhecido"));
+			})
+			.finally(() => {
+				if (!cancelado) setCarregandoEventos(false);
+			});
+
+		return () => {
+			cancelado = true;
+		};
+	}, []);
+
+	const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+
+	useEffect(() => {
+		let cancelado = false;
+
+		api
+			.get<UsuarioApi[]>("/usuarios")
+			.then((res) => {
+				if (cancelado) return;
+				setProfissionais(res.data);
+			})
+			.catch((err) => {
+				console.error("Falha ao carregar profissionais:", getApiErrorMessage(err, "Erro desconhecido"));
+			});
+
+		return () => {
+			cancelado = true;
+		};
+	}, []);
+
 	const [filtroProfissional, setFiltroProfissional] = useState("");
 	const [isAgendamentoOpen, setIsAgendamentoOpen] = useState(false);
 	const [isBloqueioOpen, setIsBloqueioOpen] = useState(false);
 	const [eventoSelecionado, setEventoSelecionado] = useState<Evento | null>(null);
+
+	async function salvarAgendamento(dados: NovoAgendamentoInput) {
+		const res = await api.post<AgendamentoApi>("/agendamentos", {
+			clienteId: dados.cliente.id,
+			profissionalId: dados.profissional.id,
+			data: dados.data,
+			horaInicio: dados.horaInicio,
+			horaFim: dados.horaFim,
+			observacoes: dados.observacoes,
+			recorrencia: dados.recorrencia,
+		});
+
+		const novoEvento: Evento = {
+			...mapAgendamentoApi(res.data),
+			nome: dados.cliente.nome,
+			profissional: dados.profissional.nome,
+		};
+
+		setEventos((prev) => [...prev, novoEvento]);
+		setIsAgendamentoOpen(false);
+	}
+
+	function cancelarAgendamento(id: string) {
+		setEventos((prev) => prev.filter((e) => e.id !== id));
+
+		api.delete(`/agendamentos/${id}`).catch((err) => {
+			console.error("Falha ao cancelar agendamento:", getApiErrorMessage(err, "Erro desconhecido"));
+		});
+	}
 
 	const eventosFiltrados = filtroProfissional
 		? eventos.filter((e) => e.profissional === filtroProfissional)
@@ -914,6 +1014,7 @@ export function Agenda() {
 						<FiltroProfissional
 							value={filtroProfissional}
 							onChange={setFiltroProfissional}
+							profissionais={profissionais.map((p) => p.nome)}
 						/>
 
 						{/* Fechar horário */}
@@ -938,6 +1039,9 @@ export function Agenda() {
 
 				{/* CONTEÚDO */}
 				<div className="flex-1 overflow-auto px-4 pb-4 sm:px-6 sm:pb-6">
+					{carregandoEventos && (
+						<p className="py-2 text-center text-sm text-slate-400">Carregando agendamentos…</p>
+					)}
 					{view === "dia" && (
 						<AgendaDiaView
 							date={currentDate}
@@ -968,18 +1072,14 @@ export function Agenda() {
 			<NovoAgendamentoModal
 				isOpen={isAgendamentoOpen}
 				onClose={() => setIsAgendamentoOpen(false)}
-				onSave={(novoEvento) => {
-					setEventos((prev) => [...prev, novoEvento]);
-					setIsAgendamentoOpen(false);
-				}}
+				onSave={salvarAgendamento}
+				profissionais={profissionais}
 			/>
 
 			<DetalheEventoModal
 				evento={eventoSelecionado}
 				onClose={() => setEventoSelecionado(null)}
-				onCancelar={(id) =>
-					setEventos((prev) => prev.filter((e) => e.id !== id))
-				}
+				onCancelar={cancelarAgendamento}
 			/>
 
 			<FechaHorarioModal
