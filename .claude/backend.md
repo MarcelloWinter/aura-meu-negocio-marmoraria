@@ -56,10 +56,18 @@ src/
 │   │   ├── clientes.routes.ts
 │   │   ├── clientes.controller.ts
 │   │   └── clientes.service.ts
-│   └── chats/                        # Novo em 2026-08-27 — leitura de chats_copy
-│       ├── chats.routes.ts
-│       ├── chats.controller.ts
-│       └── chats.service.ts
+│   ├── chats/                        # Novo em 2026-08-27 — leitura de chats_copy
+│   │   ├── chats.routes.ts
+│   │   ├── chats.controller.ts
+│   │   └── chats.service.ts
+│   ├── agendamentos/                 # Novo em 2026-08-29 — CRUD (parcial) sobre agendamentos_copy
+│   │   ├── agendamentos.routes.ts
+│   │   ├── agendamentos.controller.ts
+│   │   └── agendamentos.service.ts
+│   └── usuarios/                     # Novo em 2026-08-29 — leitura de usuarios (id + nome, nunca senha)
+│       ├── usuarios.routes.ts
+│       ├── usuarios.controller.ts
+│       └── usuarios.service.ts
 ├── middlewares/
 │   └── auth.middleware.ts            # Arquivo vazio — middleware de validação de JWT NÃO implementado
 └── utils/
@@ -82,8 +90,10 @@ Padrão arquitetural: **modularização por feature**, com camadas `routes → c
 app.use(cors());              // CORS liberado para qualquer origem (sem allowlist configurada)
 app.use(express.json());      // parsing de JSON no body
 app.use("/auth", authRoutes);
-app.use("/clientes", clientesRoutes);  // novo em 2026-08-27
-app.use("/chats", chatsRoutes);        // novo em 2026-08-27
+app.use("/clientes", clientesRoutes);        // novo em 2026-08-27
+app.use("/chats", chatsRoutes);              // novo em 2026-08-27
+app.use("/agendamentos", agendamentosRoutes); // novo em 2026-08-29
+app.use("/usuarios", usuariosRoutes);         // novo em 2026-08-29
 ```
 
 Não há middleware de log de requisições (morgan ou similar), nem middleware de tratamento de erros global (`(err, req, res, next)`).
@@ -108,13 +118,29 @@ Não há middleware de log de requisições (morgan ou similar), nem middleware 
 | POST | `/clientes` | `criar` | `clientesService.criar(dados)` | Transação: insere em `enderecos` (se algum campo de endereço veio preenchido) e depois em `clientes_copy`, linkando via `endereco_id`. Body: `{ nome, numero, cpfCnpj?, email?, endereco? }` |
 | DELETE | `/clientes/:id` | `remover` | `clientesService.remover(id)` | `DELETE FROM clientes_copy WHERE id = $1` |
 
-Nenhuma rota de `/clientes` valida JWT ou aplica escopo por `empresa_id` ainda — qualquer chamada retorna/altera todos os registros de `clientes_copy`, independente de empresa.
-
 ### `/chats` (novo em 2026-08-27, `src/modules/chats/`)
 
 | Método | Rota | Controller | Service | Observações |
 |---|---|---|---|---|
 | GET | `/chats` | `listar` | `chatsService.listar()` | `SELECT` em `chats_copy` com `LEFT JOIN clientes_copy` (nome do cliente), `ORDER BY data_ultima_conversa DESC NULLS LAST`. Só leitura — não há criação/edição de chat pela UI. |
+
+### `/agendamentos` (novo em 2026-08-29, `src/modules/agendamentos/`)
+
+| Método | Rota | Controller | Service | Observações |
+|---|---|---|---|---|
+| GET | `/agendamentos` | `listar` | `agendamentosService.listar()` | `SELECT` em `agendamentos_copy` com `LEFT JOIN clientes_copy` (nome do cliente) e `LEFT JOIN usuarios` (nome do profissional, só a coluna `nome` — nunca `senha`). `data` vem `::text` para evitar o bug de fuso horário ao serializar `DATE` do Postgres como `Date` do JS. |
+| POST | `/agendamentos` | `criar` | `agendamentosService.criar(dados)` | `INSERT` direto em `agendamentos_copy`. Body: `{ clienteId, profissionalId, data, horaInicio, horaFim, observacoes?, recorrencia? }` — os 3 primeiros e horários são obrigatórios (validado no controller, 400 se faltar). |
+| DELETE | `/agendamentos/:id` | `remover` | `agendamentosService.remover(id)` | `DELETE FROM agendamentos_copy WHERE id = $1` |
+
+`agendamentos_copy` já existia no banco antes desta sessão de trabalho (criada por fora, seguindo a mesma convenção `_copy`) — ganhou as colunas `observacoes` (text) e `recorrencia` (varchar) em 2026-08-29, que não existiam nem na tabela live `agendamentos` nem na cópia original, para acomodar campos que o formulário do frontend já tinha.
+
+### `/usuarios` (novo em 2026-08-29, `src/modules/usuarios/`)
+
+| Método | Rota | Controller | Service | Observações |
+|---|---|---|---|---|
+| GET | `/usuarios` | `listar` | `usuariosService.listar()` | `SELECT id, nome FROM usuarios WHERE ativo = TRUE` — **nunca** seleciona `senha` ou outras colunas sensíveis. Usado pelo formulário de agendamento para listar profissionais reais (antes era uma lista fixa de 3 nomes inventados). Lê a tabela `usuarios` diretamente (não é uma tabela `_copy` — é a mesma que `auth.service.ts` já lê para login, então já era uma leitura estabelecida neste backend). |
+
+Nenhuma rota de `/clientes`, `/chats`, `/agendamentos` ou `/usuarios` valida JWT ou aplica escopo por `empresa_id` ainda — qualquer chamada retorna/altera todos os registros, independente de empresa.
 
 Padrão de resposta de erro em todos os controllers: `try/catch`, retornando `res.status(<code>).json({ message })`, onde a mensagem vem do `Error` lançado pelo service (ou um fallback genérico).
 

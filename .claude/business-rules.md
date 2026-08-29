@@ -30,17 +30,22 @@ Implementado como um pipeline (Kanban). **Desde 2026-08-27, os dados são reais*
 
 ## Módulo Agenda (`/agenda`)
 
-Calendário com **três visualizações** (toggle segmentado no header): **Dia**, **Semana** (padrão) e **Mês**. Dados mockados em estado local (`useState`), sem backend ainda. Navegação (← Hoje →) adaptada por view (navega por dia, semana ou mês conforme a view ativa).
+Calendário com **três visualizações** (toggle segmentado no header): **Dia**, **Semana** (padrão) e **Mês**. **Desde 2026-08-29, os eventos são reais** (`GET`/`POST`/`DELETE /agendamentos`, ver [backend.md](./backend.md)) — antes eram um array mockado em `useState`. Navegação (← Hoje →) adaptada por view (navega por dia, semana ou mês conforme a view ativa). Bloqueios de horário (`FechaHorarioModal`) continuam só locais — não há tabela/endpoint para isso ainda.
 
 ### Tipo `Evento`
-Cada evento tem: cliente, profissional responsável, data absoluta (`data: Date`), hora de início fracionária (ex. `15.5` = 15h30), duração em horas (calculada da diferença Fim − Início no formulário), cor (fixa para todo evento novo, `COR_EVENTO_PADRAO`) e observações opcionais. **Não há mais campo de serviço** (removido em 2026-07-30, ver [changelog.md](./changelog.md)).
+Cada evento tem: cliente (`nome` + `clienteId?`), profissional responsável (`profissional` + `profissionalId?`, novo em 2026-08-29), data absoluta (`data: Date`), hora de início fracionária (ex. `15.5` = 15h30), duração em horas (calculada da diferença Fim − Início no formulário), cor (fixa para todo evento, `COR_EVENTO_PADRAO` — não vem do banco), e observações/recorrência opcionais. **Não há mais campo de serviço** (removido em 2026-07-30, ver [changelog.md](./changelog.md)) — mesmo a tabela real (`agendamentos_copy`) tendo um `servico_id`, ele não é lido nem exibido, para não reintroduzir um campo que foi deliberadamente removido da UI.
+
+### Carregamento de eventos reais
+- `Agenda.tsx` busca `GET /agendamentos` num `useEffect` ao montar, mostrando "Carregando agendamentos…" até a resposta chegar. O backend faz `LEFT JOIN` com `clientes_copy` (nome do cliente) e `usuarios` (nome do profissional) — se `cliente_id`/`profissional_id` não resolverem (registro órfão ou nulo), o evento aparece com `nome: "Cliente"` / `profissional: "—"`.
+- **`agendamentos_copy` e `clientes_copy` estão com contagem instável** (observado indo a 0 linhas e voltando durante os testes de 2026-08-29) — a Agenda pode aparecer vazia dependendo do estado do banco no momento. Ver Pendências em [database.md](./database.md).
 
 ### Formulário de novo agendamento (`NovoAgendamentoModal`)
-- Campos: Cliente, Profissional (com avatar de iniciais), Data, Início, Fim, Observações.
-- **Campo "Cliente"** usa o componente `ClienteSelect` — busca filtrada por nome ou telefone na lista do módulo Clientes (via `ClientesContext`). Permite criar um novo cliente diretamente via mini-modal (Nome + Telefone) sem sair do formulário; o cliente criado é automaticamente selecionado e adicionado ao contexto compartilhado.
+- Campos: Cliente, Profissional (com avatar de iniciais), Data, Início, Fim, Repete, Observações.
+- **Campo "Cliente"** usa o componente `ClienteSelect` — busca filtrada por nome ou telefone na lista real de `ClientesContext`. Permite criar um novo cliente diretamente via `NovoClienteModal` sem sair do formulário.
+- **Campo "Profissional"** (desde 2026-08-29): lista real vinda de `GET /usuarios` (`id` + `nome`, filtrado por `ativo = TRUE`) — antes era uma lista fixa de 3 nomes inventados ("Júlia", "Rafa", "Você") sem nenhum vínculo com uma tabela real. O filtro de profissional no header da Agenda (`FiltroProfissional`) usa a mesma lista.
 - **Fim é preenchido automaticamente** ao alterar o Início, somando sempre `DURACAO_PADRAO` (60 min fixos — antes variava por serviço selecionado, campo removido). O campo Fim permanece editável manualmente.
 - Validação: todos obrigatórios exceto Observações; `horarioFim > horarioInicio` validado com mensagem específica.
-- Lista de Profissional é mock fixo — quando houver módulo de Equipe no backend, deve vir de lá.
+- **Submit assíncrono** (desde 2026-08-29): chama `POST /agendamentos`; botão mostra "Salvando…" e fica desabilitado durante a chamada; erro de rede/servidor aparece como mensagem no formulário. "Cancelar agendamento" (no `DetalheEventoModal`) chama `DELETE /agendamentos/:id`, removendo otimista da tela.
 - No card do evento (grid Dia/Semana) e no cabeçalho do `DetalheEventoModal`, o **profissional** é exibido no lugar de onde antes aparecia o serviço.
 
 ### Bloqueio de horários (`FechaHorarioModal`)
@@ -65,7 +70,8 @@ Quando dois ou mais eventos se sobrepõem no mesmo intervalo de tempo em uma col
 
 ### Outras regras
 - Não há regra de negócio sobre horário de funcionamento do negócio.
-- Profissionais continuam sendo strings livres, sem vínculo com cadastro de equipe.
+- Profissionais agora vêm de `usuarios` (tabela real de login/auth) via `GET /usuarios`, não mais de strings livres — mas ainda sem vínculo com o módulo Equipe (que continua 100% mockado, sem relação com `usuarios`). Ver [database.md](./database.md).
+- Bloqueios de horário (`FechaHorarioModal`, `Bloqueio[]`) continuam em estado local, sem tabela/endpoint — não confundir com a recorrência real dos agendamentos, que já persiste (`agendamentos_copy.recorrencia`).
 
 ## Módulo Financeiro (`/financeiro`)
 
@@ -276,7 +282,8 @@ A lista de permissões exibida por usuário (`PERMISSOES_CONFIG`) foi corrigida 
 - Definir se os dados da aba "Empresa" em Configurações deveriam persistir de fato (hoje o botão "Salvar alterações" só atualiza estado local do componente, perdido ao navegar para outra página).
 - Confirmar se as integrações listadas em Configurações (WhatsApp/n8n, Google Agenda, Webhook) são as reais a serem suportadas, e o que "conectar" deveria de fato disparar quando houver backend.
 - As parcelas geradas pela repetição de despesas no Financeiro são transações totalmente independentes (sem `grupoRecorrencia` ou campo equivalente) — confirmar se será necessário no futuro editar/excluir todas as parcelas de uma vez, o que exigiria um campo de vínculo entre elas.
-- Agenda, Financeiro e Vendas ainda mantêm seus próprios nomes de cliente mockados (não vêm de `ClientesContext`), que nem sempre coincidem com os clientes reais agora exibidos em `/clientes` — por isso alguns links "ver cliente" em dados de exemplo desses três módulos não encontram correspondência. Atendimento não tem mais esse problema desde 2026-08-27 (usa `chats_copy.cliente_id`, que aponta para o mesmo `clientes_copy` consumido por `ClientesContext`). Isso se resolve organicamente à medida que Agenda/Financeiro/Vendas também passem a consumir dados reais; não é um bug de código.
-- **Não identificado**: em algum momento de 2026-08-27, `chats_copy` e `empresas_copy` foram esvaziadas (0 linhas) e `clientes_copy` perdeu 2 dos 3 registros que tinha, sem que nenhuma query deste backend explicasse isso. Ver Pendências em [database.md](./database.md) — o usuário vai investigar a causa antes de recriar os dados.
-- Nenhuma rota de `/clientes` ou `/chats` aplica escopo por `empresa_id` — hoje qualquer usuário (mesmo sem estar autenticado, já que não há middleware de JWT nessas rotas ainda) vê/altera todos os clientes de `clientes_copy`, de todas as empresas. Ver Pendências em [backend.md](./backend.md).
-- `Cliente.agendamentos` sempre vem vazio para clientes reais (não existe integração entre `clientes_copy` e uma tabela de agendamentos consumida pelo frontend) — o histórico de agendamentos mostrado em `DetalheClienteModal` nunca aparece preenchido para um cliente criado a partir de 2026-08-27 em diante.
+- Financeiro e Vendas ainda mantêm seus próprios nomes de cliente mockados (não vêm de `ClientesContext`), que nem sempre coincidem com os clientes reais agora exibidos em `/clientes` — por isso alguns links "ver cliente" em dados de exemplo desses dois módulos não encontram correspondência. Atendimento (desde 2026-08-27) e Agenda (desde 2026-08-29) não têm mais esse problema — ambos usam o mesmo `clientes_copy` de `ClientesContext` via `cliente_id`/`clienteId` real. Isso se resolve organicamente à medida que Financeiro/Vendas também passem a consumir dados reais; não é um bug de código.
+- **Não identificado**: desde 2026-08-27, `chats_copy`, `empresas_copy`, `clientes_copy` e agora também `agendamentos_copy` têm apresentado contagem de linhas instável (caindo a 0 e voltando entre uma sessão e outra), sem que nenhuma query deste backend explicasse isso. Ver Pendências em [database.md](./database.md) — o usuário vai investigar a causa antes de recriar os dados.
+- Nenhuma rota de `/clientes`, `/chats`, `/agendamentos` ou `/usuarios` aplica escopo por `empresa_id` — hoje qualquer usuário (mesmo sem estar autenticado, já que não há middleware de JWT nessas rotas ainda) vê/altera todos os registros de `clientes_copy`/`chats_copy`/`agendamentos_copy`, de todas as empresas. Ver Pendências em [backend.md](./backend.md).
+- `Cliente.agendamentos` (usado em `DetalheClienteModal`, o histórico de agendamentos dentro do cadastro do cliente) sempre vem vazio para clientes reais — `ClientesContext` não faz join com `agendamentos_copy` ao buscar `/clientes`. Isso é diferente do módulo Agenda em si (que já lê `agendamentos_copy` normalmente) — é só a visão "histórico dentro do cadastro do cliente" que ainda não cruza as duas tabelas.
+- Não existe conceito de "serviço" nem "valor" no formulário de agendamento (removido em 2026-07-30), mas a tabela real `agendamentos_copy` tem `servico_id` e um `pago: boolean` — nenhum dos dois é lido, exibido ou gravado pelo frontend hoje. Confirmar se isso deveria voltar à UI agora que há dados reais por trás.

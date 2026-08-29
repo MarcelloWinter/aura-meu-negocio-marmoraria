@@ -2,6 +2,33 @@
 
 Histórico reconstruído a partir do log do Git da branch `main` (repositório completo, frontend + backend). Datas e mensagens conforme os commits originais.
 
+## 2026-08-29 — (não commitado)
+**Agenda com dados reais: novos módulos `agendamentos` e `usuarios`, formulário de agendamento persistindo no banco**
+
+### `agendamentos_copy` já existia, ganhou duas colunas
+- Ao investigar a tabela para atender ao pedido do usuário, foi descoberto que `agendamentos` (live) e `agendamentos_copy` **já existiam no banco**, criadas por fora desta sessão — `agendamentos_copy` já seguia a convenção `_copy` estabelecida em 2026-08-27. Ambas estavam **vazias (0 linhas)**.
+- Schema confirmado: `id`, `cliente_id` (FK → `clientes.id` na live, sem FK na `_copy`), `profissional_id` (FK → `usuarios.id` na live — um profissional é um `usuarios` qualquer, não existe tabela `profissionais`), `empresa_id`, `data` (date), `hora_inicio`/`hora_fim` (time), `etapa` (varchar livre), `data_criacao`, `servico_id` (FK → `servicos.id`), `pago` (boolean).
+- `agendamentos_copy` ganhou `observacoes` (text) e `recorrencia` (varchar) — a tabela real não tinha esses dois campos que o formulário do frontend já usava desde a etapa de recorrência de agendamentos (2026-07-02).
+
+### Backend: módulos `agendamentos` e `usuarios` (novos)
+- **`GET /agendamentos`**: `SELECT` em `agendamentos_copy` com `LEFT JOIN clientes_copy` (nome do cliente) e `LEFT JOIN usuarios` (nome do profissional — só a coluna `nome`, nunca `senha`). `data` sai `::text` para evitar o bug clássico de fuso horário ao serializar `DATE` do Postgres como `Date` do JS (JSON.stringify chamaria `.toISOString()`, que desloca a data em fusos negativos como o do Brasil).
+- **`POST /agendamentos`**: `INSERT` direto em `agendamentos_copy`. Valida no controller que `clienteId`, `profissionalId`, `data`, `horaInicio` e `horaFim` vieram preenchidos (400 se não).
+- **`DELETE /agendamentos/:id`**: adicionado por consistência com o padrão já estabelecido em Clientes — sem isso, "Cancelar agendamento" na UI só resetaria o estado local, e o evento reapareceria no próximo carregamento.
+- **`GET /usuarios`** (novo módulo): `SELECT id, nome FROM usuarios WHERE ativo = TRUE` — deliberadamente nunca seleciona `senha` ou qualquer outra coluna sensível. `usuarios` é a mesma tabela live já lida por `auth.service.ts` para login (não é uma das três tabelas da regra `_copy`, e já era uma leitura estabelecida neste backend) — usada agora também como cadastro de profissionais, já que não existe uma tabela `profissionais` separada.
+
+### Frontend: Agenda com dados reais
+- **`Agenda.tsx`**: busca `GET /agendamentos` (mapeando para o tipo `Evento` já existente) e `GET /usuarios` (profissionais) em dois `useEffect` separados ao montar, com "Carregando agendamentos…" enquanto a primeira não resolve.
+- **Criar agendamento**: `NovoAgendamentoModal` virou assíncrono — chama uma função `salvarAgendamento` (agora em `Agenda.tsx`, que faz o `POST /agendamentos` e monta o `Evento` local a partir da resposta + dos dados já conhecidos do cliente/profissional selecionados, sem precisar de uma segunda consulta com join). Botão mostra "Salvando…" e fica desabilitado durante a chamada; erro aparece como mensagem no formulário.
+- **Cancelar agendamento**: `DetalheEventoModal` → `onCancelar` agora chama `DELETE /agendamentos/:id` (remoção otimista da tela, loga no console se falhar).
+- **Campo "Profissional" deixou de ser mockado**: antes era uma lista fixa de 3 nomes inventados ("Júlia", "Rafa", "Você") sem nenhum vínculo com dado real. Agora vem de `GET /usuarios` — tanto no formulário de novo agendamento quanto no filtro de profissional (`FiltroProfissional`) no header da Agenda. `Evento` ganhou campo opcional `profissionalId`, espelhando o `clienteId` que já existia.
+- `COR_AVATAR_PROFISSIONAL` (mapa de cor por nome, só com as 3 entradas antigas) foi deixado como está — já tinha fallback para cor neutra em nomes não mapeados, então profissionais reais (ex.: "Marlon") simplesmente caem nesse fallback sem quebrar nada.
+- Campo de serviço e `pago` **não** foram reintroduzidos na UI mesmo existindo na tabela real (`servico_id`, `pago`) — o campo Serviço foi removido deliberadamente do formulário em 2026-07-30, e reintroduzi-lo não fazia parte do pedido desta sessão.
+
+### Validação
+- Backend testado ponta a ponta com `curl` (criar agendamento com cliente e profissional reais → listar retorna com os nomes via join → excluir remove de fato do banco).
+- Frontend validado com `tsc -b`, `npm run lint` (sem novos erros/warnings além da baseline já existente) e uma checagem de console/DOM via Edge headless confirmando que a página carrega sem erros JS com o código novo.
+- **Observado durante os testes**: `agendamentos_copy` apareceu vazia na maior parte das checagens, e `clientes_copy` continuou oscilando em número de linhas (0 → 1 → 0) — mesmo padrão de instabilidade já registrado em 2026-08-27 para `chats_copy`/`empresas_copy`/`clientes_copy`, agora também presente em `agendamentos_copy`. Não identificada nenhuma causa no código deste backend. Ver Pendências em [database.md](./database.md).
+
 ## 2026-08-27 — (não commitado)
 **Backend real: conexão com o Postgres compartilhado com o n8n, módulos Clientes/Chats, persistência do formulário de cliente, e correção de um conflito de porta com outro repositório**
 
